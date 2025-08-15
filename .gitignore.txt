@@ -1,0 +1,36 @@
+# Visual Studio / .NET build folders
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+.env
+
+# Docker
+*.pid
+*.seed
+*.log
+docker-compose.override.yml
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Cache
+cache/
+*.db
+
+# Env files
+.env
+*.sqlite
+
+# Data
+data/*.csv
