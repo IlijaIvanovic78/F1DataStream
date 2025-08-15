@@ -1,28 +1,54 @@
-# Build results
-[Bb]in/
-[Oo]bj/
+# .NET build folders
+**/bin/
+**/obj/
+**/out/
 
-# Visual Studio cache/options
-.vs/
-
-# Rider
-.idea/
+# VS Code settings
+.vscode/
 
 # User-specific files
 *.user
+*.rsuser
 *.suo
 
-# Build logs
-[Ll]og/
-[Ll]ogs/
+# Temporary files
+*.tmp
+*.temp
+*.log
 
-# Env files
-.env
+# .NET generated files
+*.dll
+*.exe
+*.pdb
+*.cache
+*.dbmdl
+
+# ASP.NET scaffolding
+ScaffoldingReadMe.txt
 
 # Docker
-**/Dockerfile
-**/docker-compose.override.yml
-**/docker-compose.override.yaml
+*.pid
+*.seed
+*.bak
+docker-compose.override.yml
+.env
 
-# Ignore published output
-app/publish/
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Rider / JetBrains
+.idea/
+*.iml
+
+# Python cache (ako koristiš datamanager-py)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
