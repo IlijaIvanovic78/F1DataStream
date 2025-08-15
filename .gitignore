@@ -1,37 +1,28 @@
- 
-# Visual Studio / .NET build folders
-bin/
-obj/
+# Build results
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio cache/options
 .vs/
+
+# Rider
+.idea/
+
+# User-specific files
 *.user
 *.suo
 
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.pdb
-*.egg-info/
-.env
-
-# Docker
-*.pid
-*.seed
-*.log
-docker-compose.override.yml
-
-# OS specific
-.DS_Store
-Thumbs.db
-
-# Cache
-cache/
-*.db
+# Build logs
+[Ll]og/
+[Ll]ogs/
 
 # Env files
 .env
-*.sqlite
 
-# Data
-data/*.csv
+# Docker
+**/Dockerfile
+**/docker-compose.override.yml
+**/docker-compose.override.yaml
+
+# Ignore published output
+app/publish/
