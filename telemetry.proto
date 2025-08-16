@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package telemetry;
+
+import "google/protobuf/timestamp.proto";
+
+// Telemetry message with all required fields
+message Telemetry {
+  int64 id = 1;
+  string driver = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  int32 lap_number = 4;
+  double x = 5;
+  double y = 6;
+  double speed = 7;
+  double throttle = 8;
+  bool brake = 9;
+  int32 n_gear = 10;
+  double rpm = 11;
+  bool drs = 12;
+}
+
+// Create Telemetry Request/Response
+message CreateTelemetryRequest {
+  Telemetry telemetry = 1;
+}
+
+message CreateTelemetryResponse {
+  Telemetry telemetry = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+// Get Telemetry Request/Response
+message GetTelemetryRequest {
+  int64 id = 1;
+}
+
+message GetTelemetryResponse {
+  Telemetry telemetry = 1;
+  bool found = 2;
+}
+
+// Update Telemetry Request/Response
+message UpdateTelemetryRequest {
+  Telemetry telemetry = 1;
+}
+
+message UpdateTelemetryResponse {
+  Telemetry telemetry = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+// Delete Telemetry Request/Response
+message DeleteTelemetryRequest {
+  int64 id = 1;
+}
+
+message DeleteTelemetryResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// List Telemetry with pagination
+message ListTelemetryRequest {
+  int32 page = 1;           // Page number (starting from 1)
+  int32 page_size = 2;      // Number of items per page
+  string driver_filter = 3; // Optional: filter by driver
+  int32 lap_filter = 4;     // Optional: filter by lap number (0 = no filter)
+}
+
+message ListTelemetryResponse {
+  repeated Telemetry telemetries = 1;
+  int32 total_count = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  int32 total_pages = 5;
+}
+
+// Aggregation types enum
+enum AggregateType {
+  MIN = 0;
+  MAX = 1;
+  AVG = 2;
+  SUM = 3;
+}
+
+// Aggregate field enum for numeric fields
+enum AggregateField {
+  SPEED = 0;
+  RPM = 1;
+  THROTTLE = 2;
+  X = 3;
+  Y = 4;
+}
+
+// Aggregate Request/Response
+message AggregateRequest {
+  AggregateType type = 1;
+  AggregateField field = 2;
+  string driver_filter = 3;  // Optional: filter by driver
+  int32 lap_filter = 4;      // Optional: filter by lap number (0 = no filter)
+  google.protobuf.Timestamp start_time = 5; // Optional: filter by start time
+  google.protobuf.Timestamp end_time = 6;   // Optional: filter by end time
+}
+
+message AggregateResponse {
+  double value = 1;
+  int32 count = 2;          // Number of records used in aggregation
+  bool success = 3;
+  string message = 4;
+}
+
+// TelemetryService definition
+service TelemetryService {
+  // CRUD operations
+  rpc CreateTelemetry(CreateTelemetryRequest) returns (CreateTelemetryResponse);
+  rpc GetTelemetry(GetTelemetryRequest) returns (GetTelemetryResponse);
+  rpc UpdateTelemetry(UpdateTelemetryRequest) returns (UpdateTelemetryResponse);
+  rpc DeleteTelemetry(DeleteTelemetryRequest) returns (DeleteTelemetryResponse);
+  
+  // List with pagination
+  rpc ListTelemetry(ListTelemetryRequest) returns (ListTelemetryResponse);
+  
+  // Aggregation
+  rpc Aggregate(AggregateRequest) returns (AggregateResponse);
+}
