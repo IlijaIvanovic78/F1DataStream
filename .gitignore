@@ -52,3 +52,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Generated gRPC files (can be regenerated)
+datamanager-py/gen/telemetry_pb2.py
+datamanager-py/gen/telemetry_pb2_grpc.py
