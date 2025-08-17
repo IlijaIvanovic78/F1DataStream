@@ -1,0 +1,704 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+      "title": "Telemetry Gateway API",
+      "description": "REST API Gateway for IoT Racing Telemetry Data Management",
+      "contact": {
+        "name": "Telemetry Team"
+      },
+      "version": "v1"
+    },
+    "paths": {
+      "/api/Telemetry": {
+        "get": {
+          "tags": [
+            "Telemetry"
+          ],
+          "summary": "Retrieves a paginated list of telemetry records with optional filtering",
+          "parameters": [
+            {
+              "name": "driver",
+              "in": "query",
+              "description": "Optional filter by driver name",
+              "style": "form",
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "lap",
+              "in": "query",
+              "description": "Optional filter by lap number",
+              "style": "form",
+              "schema": {
+                "type": "integer",
+                "format": "int32"
+              }
+            },
+            {
+              "name": "page",
+              "in": "query",
+              "description": "Page number (default: 1)",
+              "style": "form",
+              "schema": {
+                "maximum": 2147483647,
+                "minimum": 1,
+                "type": "integer",
+                "format": "int32",
+                "default": 1
+              }
+            },
+            {
+              "name": "pageSize",
+              "in": "query",
+              "description": "Number of items per page (default: 50, max: 100)",
+              "style": "form",
+              "schema": {
+                "maximum": 100,
+                "minimum": 1,
+                "type": "integer",
+                "format": "int32",
+                "default": 50
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Returns the paginated telemetry data",
+              "content": {
+                "text/plain": {
+                  "schema": { }
+                },
+                "application/json": {
+                  "schema": { }
+                },
+                "text/json": {
+                  "schema": { }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid query parameters",
+              "content": {
+                "text/plain": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                },
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                },
+                "text/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "tags": [
+            "Telemetry"
+          ],
+          "summary": "Creates a new telemetry record",
+          "requestBody": {
+            "description": "The telemetry data to create",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTelemetryDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTelemetryDto"
+                }
+              },
+              "application/*+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTelemetryDto"
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Telemetry record created successfully",
+              "content": {
+                "text/plain": {
+                  "schema": {
+                    "$ref": "#/components/schemas/TelemetryDto"
+                  }
+                },
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/TelemetryDto"
+                  }
+                },
+                "text/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/TelemetryDto"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid input data",
+              "content": {
+                "text/plain": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                },
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                },
+                "text/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/Telemetry/{id}": {
+        "get": {
+          "tags": [
+            "Telemetry"
+          ],
+          "summary": "Retrieves a specific telemetry record by ID",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "description": "The ID of the telemetry record",
+              "required": true,
+              "style": "simple",
+              "schema": {
+                "minimum": 1,
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Returns the telemetry record",
+              "content": {
+                "text/plain": {
+                  "schema": {
+                    "$ref": "#/components/schemas/TelemetryDto"
+                  }
+                },
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/TelemetryDto"
+                  }
+                },
+                "text/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/TelemetryDto"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Telemetry record not found",
+              "content": {
+                "text/plain": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                },
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                },
+                "text/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "put": {
+          "tags": [
+            "Telemetry"
+          ],
+          "summary": "Updates an existing telemetry record",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "description": "The ID of the telemetry record to update",
+              "required": true,
+              "style": "simple",
+              "schema": {
+                "minimum": 1,
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          ],
+          "requestBody": {
+            "description": "The updated telemetry data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateTelemetryDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateTelemetryDto"
+                }
+              },
+              "application/*+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateTelemetryDto"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Telemetry record updated successfully",
+              "content": {
+                "text/plain": {
+                  "schema": {
+                    "$ref": "#/components/schemas/TelemetryDto"
+                  }
+                },
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/TelemetryDto"
+                  }
+                },
+                "text/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/TelemetryDto"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid input data",
+              "content": {
+                "text/plain": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                },
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                },
+                "text/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Telemetry record not found",
+              "content": {
+                "text/plain": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                },
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                },
+                "text/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "delete": {
+          "tags": [
+            "Telemetry"
+          ],
+          "summary": "Deletes a telemetry record",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "description": "The ID of the telemetry record to delete",
+              "required": true,
+              "style": "simple",
+              "schema": {
+                "minimum": 1,
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          ],
+          "responses": {
+            "204": {
+              "description": "Telemetry record deleted successfully"
+            },
+            "404": {
+              "description": "Telemetry record not found",
+              "content": {
+                "text/plain": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                },
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                },
+                "text/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/Telemetry/aggregate": {
+        "get": {
+          "tags": [
+            "Telemetry"
+          ],
+          "summary": "Performs aggregation calculations on telemetry data",
+          "parameters": [
+            {
+              "name": "field",
+              "in": "query",
+              "description": "The field to aggregate (SPEED, RPM, THROTTLE, X, Y)",
+              "required": true,
+              "style": "form",
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "type",
+              "in": "query",
+              "description": "The aggregation type (MIN, MAX, AVG, SUM)",
+              "required": true,
+              "style": "form",
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "driver",
+              "in": "query",
+              "description": "Optional filter by driver name",
+              "style": "form",
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "lap",
+              "in": "query",
+              "description": "Optional filter by lap number",
+              "style": "form",
+              "schema": {
+                "type": "integer",
+                "format": "int32"
+              }
+            },
+            {
+              "name": "from",
+              "in": "query",
+              "description": "Optional start time filter",
+              "style": "form",
+              "schema": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            {
+              "name": "to",
+              "in": "query",
+              "description": "Optional end time filter",
+              "style": "form",
+              "schema": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Returns the aggregation result",
+              "content": {
+                "text/plain": {
+                  "schema": { }
+                },
+                "application/json": {
+                  "schema": { }
+                },
+                "text/json": {
+                  "schema": { }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid aggregation parameters",
+              "content": {
+                "text/plain": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                },
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                },
+                "text/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProblemDetails"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "components": {
+      "schemas": {
+        "CreateTelemetryDto": {
+          "type": "object",
+          "properties": {
+            "driver": {
+              "type": "string",
+              "description": "Name of the driver",
+              "nullable": true
+            },
+            "timestampUtc": {
+              "type": "string",
+              "description": "UTC timestamp of the telemetry measurement",
+              "format": "date-time"
+            },
+            "lapNumber": {
+              "type": "integer",
+              "description": "Lap number during which the telemetry was recorded",
+              "format": "int32"
+            },
+            "x": {
+              "type": "number",
+              "description": "X coordinate position",
+              "format": "double"
+            },
+            "y": {
+              "type": "number",
+              "description": "Y coordinate position",
+              "format": "double"
+            },
+            "speed": {
+              "type": "number",
+              "description": "Current speed in km/h",
+              "format": "double"
+            },
+            "throttle": {
+              "type": "number",
+              "description": "Throttle position as percentage (0-100)",
+              "format": "double"
+            },
+            "brake": {
+              "type": "boolean",
+              "description": "Whether brake is applied"
+            },
+            "nGear": {
+              "type": "integer",
+              "description": "Current gear number",
+              "format": "int32"
+            },
+            "rpm": {
+              "type": "number",
+              "description": "Engine RPM",
+              "format": "double"
+            },
+            "drs": {
+              "type": "boolean",
+              "description": "Whether DRS (Drag Reduction System) is active"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Data transfer object for creating new telemetry records"
+        },
+        "ProblemDetails": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "nullable": true
+            },
+            "title": {
+              "type": "string",
+              "nullable": true
+            },
+            "status": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "detail": {
+              "type": "string",
+              "nullable": true
+            },
+            "instance": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          "additionalProperties": { }
+        },
+        "TelemetryDto": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "description": "Unique identifier for the telemetry record",
+              "format": "int64"
+            },
+            "driver": {
+              "type": "string",
+              "description": "Name of the driver",
+              "nullable": true
+            },
+            "timestampUtc": {
+              "type": "string",
+              "description": "UTC timestamp of the telemetry measurement",
+              "format": "date-time"
+            },
+            "lapNumber": {
+              "type": "integer",
+              "description": "Lap number during which the telemetry was recorded",
+              "format": "int32"
+            },
+            "x": {
+              "type": "number",
+              "description": "X coordinate position",
+              "format": "double"
+            },
+            "y": {
+              "type": "number",
+              "description": "Y coordinate position",
+              "format": "double"
+            },
+            "speed": {
+              "type": "number",
+              "description": "Current speed in km/h",
+              "format": "double"
+            },
+            "throttle": {
+              "type": "number",
+              "description": "Throttle position as percentage (0-100)",
+              "format": "double"
+            },
+            "brake": {
+              "type": "boolean",
+              "description": "Whether brake is applied"
+            },
+            "nGear": {
+              "type": "integer",
+              "description": "Current gear number",
+              "format": "int32"
+            },
+            "rpm": {
+              "type": "number",
+              "description": "Engine RPM",
+              "format": "double"
+            },
+            "drs": {
+              "type": "boolean",
+              "description": "Whether DRS (Drag Reduction System) is active"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Data transfer object for telemetry responses"
+        },
+        "UpdateTelemetryDto": {
+          "type": "object",
+          "properties": {
+            "driver": {
+              "type": "string",
+              "description": "Name of the driver",
+              "nullable": true
+            },
+            "timestampUtc": {
+              "type": "string",
+              "description": "UTC timestamp of the telemetry measurement",
+              "format": "date-time"
+            },
+            "lapNumber": {
+              "type": "integer",
+              "description": "Lap number during which the telemetry was recorded",
+              "format": "int32"
+            },
+            "x": {
+              "type": "number",
+              "description": "X coordinate position",
+              "format": "double"
+            },
+            "y": {
+              "type": "number",
+              "description": "Y coordinate position",
+              "format": "double"
+            },
+            "speed": {
+              "type": "number",
+              "description": "Current speed in km/h",
+              "format": "double"
+            },
+            "throttle": {
+              "type": "number",
+              "description": "Throttle position as percentage (0-100)",
+              "format": "double"
+            },
+            "brake": {
+              "type": "boolean",
+              "description": "Whether brake is applied"
+            },
+            "nGear": {
+              "type": "integer",
+              "description": "Current gear number",
+              "format": "int32"
+            },
+            "rpm": {
+              "type": "number",
+              "description": "Engine RPM",
+              "format": "double"
+            },
+            "drs": {
+              "type": "boolean",
+              "description": "Whether DRS (Drag Reduction System) is active"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Data transfer object for updating telemetry records"
+        }
+      }
+    }
+  }
