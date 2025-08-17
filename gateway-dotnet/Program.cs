@@ -53,6 +53,9 @@ builder.Services.AddGrpcClient<TelemetryService.TelemetryServiceClient>(o =>
     AutomaticDecompression = DecompressionMethods.All
 });
 
+// Add Health Checks
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -69,5 +72,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.MapControllers();
+
+// Map Health Check endpoint
+app.MapHealthChecks("/healthz");
 
 app.Run();

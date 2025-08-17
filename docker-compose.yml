@@ -27,6 +27,12 @@ services:
       - postgres
     networks:
       - iotnet
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('localhost',50051),2); s.close()"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
 
   gateway:
     build:
@@ -35,13 +41,31 @@ services:
     environment:
       ASPNETCORE_URLS: "http://0.0.0.0:8080"
       ASPNETCORE_ENVIRONMENT: "Development"
-      Grpc__TelemetryServiceUrl: "http://datamanager:50051"  # KLJUČNO
+      Grpc__TelemetryServiceUrl: "http://datamanager:50051"
     ports:
       - "5000:8080"
     depends_on:
       - datamanager
     networks:
       - iotnet
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  sensorgen:
+    build: ./sensor-generator
+    depends_on:
+      - gateway
+    networks:
+      - iotnet
+    volumes:
+      - ./data:/data   # Mount data folder containing CSV files
+    environment:
+      - PYTHONUNBUFFERED=1  # For real-time logging
+    command: ["python", "send_stream.py", "--path", "/data/f1_telemetry_wide.csv", "--base-url", "http://gateway:8080", "--rate", "50", "--burst", "10"]
 
 networks:
   iotnet:
