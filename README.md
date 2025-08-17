@@ -156,6 +156,12 @@ python send_stream.py --path ../data/f1_telemetry_wide.csv --base-url http://loc
 - Interactive API testing interface
 - Request/response examples and validation rules
 
+📜 OpenAPI & Protobuf dokumenti
+
+OpenAPI (REST): openapi/swagger.json
+
+Protobuf (gRPC): telemetry.proto (u root-u repo-a)
+
 ### 🔧 gRPC Services (Python)
 
 **📋 Protobuf Definition**: [`telemetry.proto`](telemetry.proto)
@@ -523,6 +529,9 @@ iot-telemetry-grpc/
 ├── 📄 .gitignore                   # Git ignore rules
 ├── 📄 .env.example                 # Environment template
 │
+├── 📂 openapi/
+│   └── 📄 swagger.json
+│  
 ├── 📂 datamanager-py/              # Python gRPC Service
 │   ├── 📄 app.py                   # Main gRPC server
 │   ├── 📄 requirements.txt         # Python dependencies
