@@ -1,18 +1,26 @@
 # Build stage
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Kopiraj csproj i restore
-COPY *.csproj ./
-RUN dotnet restore
+# Copy the proto file from parent directory
+COPY telemetry.proto ./
 
-# Kopiraj ostalo i build
-COPY . .
-RUN dotnet publish -c Release -o /app/publish
+# Copy project file
+COPY gateway-dotnet/gateway-dotnet.csproj ./gateway-dotnet/
+
+# Restore dependencies
+RUN dotnet restore gateway-dotnet/gateway-dotnet.csproj
+
+# Copy gateway source code
+COPY gateway-dotnet/ ./gateway-dotnet/
+
+# Build and publish
+RUN dotnet publish gateway-dotnet/gateway-dotnet.csproj -c Release -o /app
 
 # Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
-COPY --from=build /app/publish .
-# Optional: EXPOSE 8080
+COPY --from=build /app .
+EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:8080
 ENTRYPOINT ["dotnet", "gateway-dotnet.dll"]
