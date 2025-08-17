@@ -156,7 +156,7 @@ python send_stream.py --path ../data/f1_telemetry_wide.csv --base-url http://loc
 - Interactive API testing interface
 - Request/response examples and validation rules
 
-📜 OpenAPI & Protobuf dokumenti
+##  📜 OpenAPI & Protobuf dokumenti
 
 OpenAPI (REST): openapi/swagger.json
 
