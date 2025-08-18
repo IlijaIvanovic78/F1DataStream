@@ -100,7 +100,7 @@ services:
       MQTT_TOPIC_RAW: telemetry/raw
       MQTT_TOPIC_EVENTS: telemetry/events
       MQTT_QOS: 1
-      RULE_SPEED_MAX: 320
+      RULE_SPEED_MAX: 325
       RULE_RPM_MAX: 12000
       RULE_BRAKE_ALERT_SPEED: 280
     networks:

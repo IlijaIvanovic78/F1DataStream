@@ -5,37 +5,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace gateway_dotnet.Controllers;
 
-/// <summary>
-/// Data transfer object for telemetry responses
-/// </summary>
-/// <param name="Id">Unique identifier for the telemetry record</param>
-/// <param name="Driver">Name of the driver</param>
-/// <param name="TimestampUtc">UTC timestamp of the telemetry measurement</param>
-/// <param name="LapNumber">Lap number during which the telemetry was recorded</param>
-/// <param name="X">X coordinate position</param>
-/// <param name="Y">Y coordinate position</param>
-/// <param name="Speed">Current speed in km/h</param>
-/// <param name="Throttle">Throttle position as percentage (0-100)</param>
-/// <param name="Brake">Whether brake is applied</param>
-/// <param name="NGear">Current gear number</param>
-/// <param name="Rpm">Engine RPM</param>
-/// <param name="Drs">Whether DRS (Drag Reduction System) is active</param>
 public record TelemetryDto(long Id, string Driver, DateTime TimestampUtc, int LapNumber, double X, double Y, double Speed, double Throttle, bool Brake, int NGear, double Rpm, bool Drs);
 
-/// <summary>
-/// Data transfer object for creating new telemetry records
-/// </summary>
-/// <param name="Driver">Name of the driver</param>
-/// <param name="TimestampUtc">UTC timestamp of the telemetry measurement</param>
-/// <param name="LapNumber">Lap number during which the telemetry was recorded</param>
-/// <param name="X">X coordinate position</param>
-/// <param name="Y">Y coordinate position</param>
-/// <param name="Speed">Current speed in km/h</param>
-/// <param name="Throttle">Throttle position as percentage (0-100)</param>
-/// <param name="Brake">Whether brake is applied</param>
-/// <param name="NGear">Current gear number</param>
-/// <param name="Rpm">Engine RPM</param>
-/// <param name="Drs">Whether DRS (Drag Reduction System) is active</param>
 public record CreateTelemetryDto(
     [Required][MaxLength(100)] string Driver,
     [Required] DateTime TimestampUtc,
@@ -50,20 +21,6 @@ public record CreateTelemetryDto(
     [Required] bool Drs
 );
 
-/// <summary>
-/// Data transfer object for updating telemetry records
-/// </summary>
-/// <param name="Driver">Name of the driver</param>
-/// <param name="TimestampUtc">UTC timestamp of the telemetry measurement</param>
-/// <param name="LapNumber">Lap number during which the telemetry was recorded</param>
-/// <param name="X">X coordinate position</param>
-/// <param name="Y">Y coordinate position</param>
-/// <param name="Speed">Current speed in km/h</param>
-/// <param name="Throttle">Throttle position as percentage (0-100)</param>
-/// <param name="Brake">Whether brake is applied</param>
-/// <param name="NGear">Current gear number</param>
-/// <param name="Rpm">Engine RPM</param>
-/// <param name="Drs">Whether DRS (Drag Reduction System) is active</param>
 public record UpdateTelemetryDto(
     [Required][MaxLength(100)] string Driver,
     [Required] DateTime TimestampUtc,
@@ -87,17 +44,11 @@ public record UpdateTelemetryDto(
 public class TelemetryController : ControllerBase
 {
     private readonly TelemetryService.TelemetryServiceClient _client;
-
-    /// <summary>
-    /// Initializes a new instance of the TelemetryController
-    /// </summary>
-    /// <param name="client">gRPC client for telemetry service</param>
     public TelemetryController(TelemetryService.TelemetryServiceClient client)
     {
         _client = client;
     }
 
-    // Helper methods for conversions
     private static Timestamp DateTimeToTimestamp(DateTime dateTime)
     {
         return Timestamp.FromDateTime(DateTime.SpecifyKind(dateTime, DateTimeKind.Utc));
@@ -188,16 +139,6 @@ public class TelemetryController : ControllerBase
         };
     }
 
-    /// <summary>
-    /// Retrieves a paginated list of telemetry records with optional filtering
-    /// </summary>
-    /// <param name="driver">Optional filter by driver name</param>
-    /// <param name="lap">Optional filter by lap number</param>
-    /// <param name="page">Page number (default: 1)</param>
-    /// <param name="pageSize">Number of items per page (default: 50, max: 100)</param>
-    /// <returns>Paginated telemetry records</returns>
-    /// <response code="200">Returns the paginated telemetry data</response>
-    /// <response code="400">Invalid query parameters</response>
     [HttpGet]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -229,13 +170,6 @@ public class TelemetryController : ControllerBase
         });
     }
 
-    /// <summary>
-    /// Retrieves a specific telemetry record by ID
-    /// </summary>
-    /// <param name="id">The ID of the telemetry record</param>
-    /// <returns>The telemetry record</returns>
-    /// <response code="200">Returns the telemetry record</response>
-    /// <response code="404">Telemetry record not found</response>
     [HttpGet("{id:long}")]
     [ProducesResponseType(typeof(TelemetryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -252,13 +186,6 @@ public class TelemetryController : ControllerBase
         return Ok(ToDto(response.Telemetry));
     }
 
-    /// <summary>
-    /// Creates a new telemetry record
-    /// </summary>
-    /// <param name="dto">The telemetry data to create</param>
-    /// <returns>The created telemetry record</returns>
-    /// <response code="201">Telemetry record created successfully</response>
-    /// <response code="400">Invalid input data</response>
     [HttpPost]
     [ProducesResponseType(typeof(TelemetryDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -278,15 +205,6 @@ public class TelemetryController : ControllerBase
         return CreatedAtAction(nameof(GetTelemetry), new { id = result.Id }, result);
     }
 
-    /// <summary>
-    /// Updates an existing telemetry record
-    /// </summary>
-    /// <param name="id">The ID of the telemetry record to update</param>
-    /// <param name="dto">The updated telemetry data</param>
-    /// <returns>The updated telemetry record</returns>
-    /// <response code="200">Telemetry record updated successfully</response>
-    /// <response code="400">Invalid input data</response>
-    /// <response code="404">Telemetry record not found</response>
     [HttpPut("{id:long}")]
     [ProducesResponseType(typeof(TelemetryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -306,13 +224,6 @@ public class TelemetryController : ControllerBase
         return Ok(ToDto(response.Telemetry));
     }
 
-    /// <summary>
-    /// Deletes a telemetry record
-    /// </summary>
-    /// <param name="id">The ID of the telemetry record to delete</param>
-    /// <returns>No content if successful</returns>
-    /// <response code="204">Telemetry record deleted successfully</response>
-    /// <response code="404">Telemetry record not found</response>
     [HttpDelete("{id:long}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -329,18 +240,6 @@ public class TelemetryController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>
-    /// Performs aggregation calculations on telemetry data
-    /// </summary>
-    /// <param name="field">The field to aggregate (SPEED, RPM, THROTTLE, X, Y)</param>
-    /// <param name="type">The aggregation type (MIN, MAX, AVG, SUM)</param>
-    /// <param name="driver">Optional filter by driver name</param>
-    /// <param name="lap">Optional filter by lap number</param>
-    /// <param name="from">Optional start time filter</param>
-    /// <param name="to">Optional end time filter</param>
-    /// <returns>Aggregation result</returns>
-    /// <response code="200">Returns the aggregation result</response>
-    /// <response code="400">Invalid aggregation parameters</response>
     [HttpGet("aggregate")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

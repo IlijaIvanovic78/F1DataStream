@@ -6,13 +6,11 @@ using Telemetry;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Kestrel
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ListenAnyIP(8080);
 });
 
-// Add controllers support with custom validation behavior
 builder.Services.AddControllers().ConfigureApiBehaviorOptions(o =>
 {
     o.InvalidModelStateResponseFactory = ctx =>
@@ -22,7 +20,7 @@ builder.Services.AddControllers().ConfigureApiBehaviorOptions(o =>
     };
 });
 
-// Swagger (Swashbuckle) with XML documentation
+// Swagger configuration
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -34,11 +32,9 @@ builder.Services.AddSwaggerGen(c =>
         Contact = new() { Name = "Telemetry Team" }
     });
 
-    // Include XML comments
     var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
 
-    // Group endpoints by tags
     c.TagActionsBy(api => new[] { api.GroupName ?? api.ActionDescriptor.RouteValues["controller"] });
     c.DocInclusionPredicate((name, api) => true);
 });
@@ -64,7 +60,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Telemetry Gateway API v1");
-        c.RoutePrefix = string.Empty; // Serve Swagger UI at root
+        c.RoutePrefix = string.Empty;
         c.DocumentTitle = "Telemetry Gateway API";
     });
 }
@@ -73,7 +69,6 @@ app.UseHttpsRedirection();
 
 app.MapControllers();
 
-// Map Health Check endpoint
 app.MapHealthChecks("/healthz");
 
 app.Run();
