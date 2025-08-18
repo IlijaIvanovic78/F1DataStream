@@ -9,8 +9,6 @@ logger = logging.getLogger(__name__)
 
 
 class MqttPublisher:
-    """MQTT Publisher for telemetry data"""
-    
     def __init__(self):
         self.host = os.getenv("MQTT_HOST", "mqtt")
         self.port = int(os.getenv("MQTT_PORT", "1883"))
@@ -24,11 +22,9 @@ class MqttPublisher:
         self._lock = threading.Lock()
         self._connected = False
         
-        # Set up callbacks
         self._client.on_connect = self._on_connect
         self._client.on_disconnect = self._on_disconnect
         
-        # Start connection
         try:
             self._client.connect_async(self.host, self.port, keepalive=30)
             self._client.loop_start()
@@ -37,7 +33,6 @@ class MqttPublisher:
             logger.error(f"Failed to start MQTT client: {e}")
 
     def _on_connect(self, client, userdata, flags, rc):
-        """Callback for MQTT connection"""
         self._connected = (rc == 0)
         if self._connected:
             logger.info(f"MQTT connected to {self.host}:{self.port}")
@@ -45,24 +40,20 @@ class MqttPublisher:
             logger.warning(f"MQTT connection failed with code {rc}")
 
     def _on_disconnect(self, client, userdata, rc):
-        """Callback for MQTT disconnection"""
         self._connected = False
         logger.warning(f"MQTT disconnected with code {rc}")
 
     def publish(self, payload: Dict[str, Any]):
-        """Publish telemetry data to MQTT topic"""
         try:
             data = json.dumps(payload, default=str)
             
             with self._lock:
                 if not self._connected:
-                    # Try to reconnect if not connected
                     try:
                         self._client.reconnect()
                     except Exception as e:
                         logger.warning(f"MQTT reconnect failed: {e}")
                 
-                # Publish is thread-safe in paho-mqtt
                 result = self._client.publish(self.topic, data, qos=self.qos, retain=False)
                 
                 if result.rc == mqtt.MQTT_ERR_SUCCESS:
@@ -74,7 +65,6 @@ class MqttPublisher:
             logger.error(f"Failed to publish MQTT message: {e}")
 
     def disconnect(self):
-        """Disconnect from MQTT broker"""
         if self._client:
             self._client.loop_stop()
             self._client.disconnect()

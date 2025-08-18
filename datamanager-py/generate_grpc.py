@@ -3,17 +3,15 @@ import sys
 from pathlib import Path
 
 def generate_grpc_stubs():
-    # Get the directory where this script is located
+
+
     script_dir = Path(__file__).parent
-    
-    # Define paths
+
     proto_file = script_dir.parent / "telemetry.proto"
     output_dir = script_dir / "gen"
     
-    # Create output directory if it doesn't exist
     output_dir.mkdir(exist_ok=True)
     
-    # Check if proto file exists
     if not proto_file.exists():
         print(f"Error: Proto file not found at {proto_file}")
         return False
@@ -21,8 +19,13 @@ def generate_grpc_stubs():
     print(f"Generating gRPC stubs from {proto_file}")
     print(f"Output directory: {output_dir}")
     
+
+    # python -m grpc_tools.protoc \
+    # --proto_path=../ \
+    # --python_out=gen/ \
+    # --grpc_python_out=gen/ \
+    # telemetry.proto
     try:
-        # Generate Python gRPC stubs
         cmd = [
             sys.executable, "-m", "grpc_tools.protoc",
             f"--proto_path={proto_file.parent}",
@@ -40,14 +43,12 @@ def generate_grpc_stubs():
         
         print("gRPC stubs generated successfully!")
         
-        # Create __init__.py file
         init_file = output_dir / "__init__.py"
         with open(init_file, 'w') as f:
             f.write('"""Generated gRPC stubs for telemetry service"""\n')
         
         print(f"Created {init_file}")
         
-        # List generated files
         generated_files = list(output_dir.glob("*.py"))
         print("\nGenerated files:")
         for file in generated_files:

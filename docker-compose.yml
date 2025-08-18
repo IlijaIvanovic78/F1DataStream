@@ -16,17 +16,29 @@ services:
 
   datamanager:
     build: ./datamanager-py
-    env_file:
-      - datamanager-py/.env
     environment:
-      POSTGRES_HOST: postgres        # pregazi localhost iz .env kad je u dockeru
+      # PostgreSQL Configuration
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: telemetry
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_PORT: 5432
+      
+      # MQTT Configuration  
       MQTT_HOST: mqtt
       MQTT_PORT: 1883
       MQTT_TOPIC_RAW: telemetry/raw
       MQTT_QOS: 1
-    # ports nisu obavezni za inter-container, ali ih ostavljamo da možeš test sa hosta
+      MQTT_CLIENT_ID: datamanager-pub
+      
+      # gRPC Server Configuration
+      GRPC_HOST: 0.0.0.0
+      GRPC_PORT: 50051
+      
+      # Development settings
+      DEBUG: true
     ports:
-      - "50051:50051"                # tvoja app sluša na 50051
+      - "50051:50051"
     depends_on:
       - postgres
       - mqtt

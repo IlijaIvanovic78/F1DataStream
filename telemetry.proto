@@ -99,15 +99,15 @@ enum AggregateField {
 message AggregateRequest {
   AggregateType type = 1;
   AggregateField field = 2;
-  string driver_filter = 3;  // Optional: filter by driver
-  int32 lap_filter = 4;      // Optional: filter by lap number (0 = no filter)
-  google.protobuf.Timestamp start_time = 5; // Optional: filter by start time
-  google.protobuf.Timestamp end_time = 6;   // Optional: filter by end time
+  string driver_filter = 3; 
+  int32 lap_filter = 4;      
+  google.protobuf.Timestamp start_time = 5; 
+  google.protobuf.Timestamp end_time = 6;   
 }
 
 message AggregateResponse {
   double value = 1;
-  int32 count = 2;          // Number of records used in aggregation
+  int32 count = 2;
   bool success = 3;
   string message = 4;
 }
