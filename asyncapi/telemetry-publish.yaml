@@ -1,0 +1,53 @@
+asyncapi: '2.6.0'
+info:
+  title: Telemetry Publisher (DataManager)
+  version: '1.0.0'
+  description: Publikuje sirove telemetrijske merenja na MQTT topic `telemetry/raw`.
+defaultContentType: application/json
+servers:
+  mqtt:
+    url: mqtt://localhost:1883
+    protocol: mqtt
+  mqttWS:
+    url: ws://localhost:9001
+    protocol: ws
+channels:
+  telemetry/raw:
+    description: Sirov tok telemetrije kreiran u DataManager servisu.
+    publish:
+      operationId: publishRawTelemetry
+      message:
+        name: TelemetryMessage
+        payload:
+          type: object
+          properties:
+            id:        { type: integer }
+            driver:    { type: string }
+            timestampUtc: { type: string, format: date-time }
+            lapNumber: { type: integer }
+            x:         { type: number }
+            y:         { type: number }
+            speed:     { type: number }
+            throttle:  { type: number }
+            brake:     { type: boolean }
+            nGear:     { type: integer }
+            rpm:       { type: number }
+            drs:       { type: boolean }
+          required:
+            - id
+            - driver
+            - timestampUtc
+            - lapNumber
+          example:
+            id: 12345
+            driver: "Lewis Hamilton"
+            timestampUtc: "2025-08-17T14:30:15.123Z"
+            lapNumber: 15
+            x: 1250.5
+            y: 800.2
+            speed: 285.7
+            throttle: 98.5
+            brake: false
+            nGear: 7
+            rpm: 8500
+            drs: true

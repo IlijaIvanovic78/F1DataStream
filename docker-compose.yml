@@ -20,11 +20,16 @@ services:
       - datamanager-py/.env
     environment:
       POSTGRES_HOST: postgres        # pregazi localhost iz .env kad je u dockeru
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
+      MQTT_TOPIC_RAW: telemetry/raw
+      MQTT_QOS: 1
     # ports nisu obavezni za inter-container, ali ih ostavljamo da možeš test sa hosta
     ports:
       - "50051:50051"                # tvoja app sluša na 50051
     depends_on:
       - postgres
+      - mqtt
     networks:
       - iotnet
     healthcheck:
@@ -54,6 +59,55 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: iot-mqtt
+    restart: unless-stopped
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    ports:
+      - "1883:1883"   # MQTT TCP
+      - "9001:9001"   # MQTT over WebSockets
+    networks:
+      - iotnet
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -p 1883 -t '$SYS/broker/version' -C 1 -W 2 > /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  eventmanager:
+    build: ./eventmanager-py
+    depends_on:
+      - mqtt
+    environment:
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
+      MQTT_TOPIC_RAW: telemetry/raw
+      MQTT_TOPIC_EVENTS: telemetry/events
+      MQTT_QOS: 1
+      RULE_SPEED_MAX: 320
+      RULE_RPM_MAX: 12000
+      RULE_BRAKE_ALERT_SPEED: 280
+    networks:
+      - iotnet
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import paho.mqtt.client as m;c=m.Client();c.connect('mqtt',1883,10);print('ok')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  mqttweb:
+    build: ./mqtt-webclient
+    depends_on:
+      - mqtt
+    ports:
+      - "8081:80"
+    networks:
+      - iotnet
 
   sensorgen:
     build: ./sensor-generator

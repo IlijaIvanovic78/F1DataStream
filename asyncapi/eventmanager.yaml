@@ -1,0 +1,159 @@
+asyncapi: '2.6.0'
+info:
+  title: EventManager
+  version: '1.0.0'
+  description: Subscribuje na `telemetry/raw`, detektuje događaje i publikuje na `telemetry/events`.
+defaultContentType: application/json
+servers:
+  mqtt:
+    url: mqtt://localhost:1883
+    protocol: mqtt
+  mqttWS:
+    url: ws://localhost:9001
+    protocol: ws
+channels:
+  telemetry/raw:
+    description: Sirov tok telemetrije iz DataManager servisa
+    subscribe:
+      operationId: onRawTelemetry
+      summary: Obrađuje dolazne telemetrijske podatke
+      message:
+        name: TelemetryMessage
+        payload:
+          $ref: '#/components/schemas/Telemetry'
+  telemetry/events:
+    description: Detektovani događaji na osnovu telemetrijskih pravila
+    publish:
+      operationId: publishDetectedEvent
+      summary: Publikuje detektovane događaje
+      message:
+        name: TelemetryEvent
+        payload:
+          $ref: '#/components/schemas/Event'
+components:
+  schemas:
+    Telemetry:
+      type: object
+      description: Telemetrijski podatak iz DataManager servisa
+      properties:
+        id: 
+          type: integer
+          description: Jedinstveni identifikator telemetrije
+        driver: 
+          type: string
+          description: Ime vozača
+        timestampUtc: 
+          type: string
+          format: date-time
+          description: UTC vreme merenja
+        lapNumber: 
+          type: integer
+          description: Broj kruga
+        x: 
+          type: number
+          description: X koordinata pozicije
+        y: 
+          type: number
+          description: Y koordinata pozicije
+        speed: 
+          type: number
+          description: Brzina u km/h
+        throttle: 
+          type: number
+          description: Pozicija gasa (0-100%)
+        brake: 
+          type: boolean
+          description: Da li je kočnica pritisnuta
+        nGear: 
+          type: integer
+          description: Trenutni broj brzine
+        rpm: 
+          type: number
+          description: Obrtaji motora
+        drs: 
+          type: boolean
+          description: Da li je DRS aktivan
+      required:
+        - id
+        - driver
+        - timestampUtc
+        - lapNumber
+        - speed
+        - rpm
+      example:
+        id: 12345
+        driver: "Lewis Hamilton"
+        timestampUtc: "2025-08-17T14:30:15.123Z"
+        lapNumber: 15
+        x: 1250.5
+        y: 800.2
+        speed: 315.7
+        throttle: 98.5
+        brake: true
+        nGear: 7
+        rpm: 12000
+        drs: true
+    Event:
+      type: object
+      description: Detektovani događaj na osnovu telemetrijskih pravila
+      properties:
+        type: 
+          type: string
+          enum: [SPEED_OVER_LIMIT, RPM_OVER_LIMIT, HARD_BRAKE_AT_HIGH_SPEED]
+          description: Tip detektovanog događaja
+        driver: 
+          type: string
+          description: Ime vozača
+        lapNumber: 
+          type: integer
+          description: Broj kruga kada se dogodio događaj
+        timestampUtc: 
+          type: string
+          format: date-time
+          description: UTC vreme kada se dogodio događaj
+        x: 
+          type: number
+          description: X koordinata gde se dogodio događaj
+        y: 
+          type: number
+          description: Y koordinata gde se dogodio događaj
+        value: 
+          type: number
+          description: Vrednost koja je prekršila pravilo
+        limit: 
+          type: number
+          description: Granična vrednost pravila
+      required:
+        - type
+        - driver
+        - timestampUtc
+        - value
+        - limit
+      examples:
+        speedOverLimit:
+          type: "SPEED_OVER_LIMIT"
+          driver: "Lewis Hamilton"
+          lapNumber: 15
+          timestampUtc: "2025-08-17T14:30:15.123Z"
+          x: 1250.5
+          y: 800.2
+          value: 315.7
+          limit: 310.0
+        rpmOverLimit:
+          type: "RPM_OVER_LIMIT"
+          driver: "Max Verstappen"
+          lapNumber: 8
+          timestampUtc: "2025-08-17T14:25:42.456Z"
+          x: 2100.3
+          y: 1200.8
+          value: 12000
+          limit: 11500
+        hardBrakeAtHighSpeed:
+          type: "HARD_BRAKE_AT_HIGH_SPEED"
+          driver: "Charles Leclerc"
+          lapNumber: 22
+          timestampUtc: "2025-08-17T14:45:18.789Z"
+          x: 800.1
+          y: 1500.6
+          value: 295.3
+          limit: 280.0

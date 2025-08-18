@@ -14,11 +14,17 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(pathlib.Path(__file__).parent.joinpath("gen")))
 import telemetry_pb2, telemetry_pb2_grpc  # type: ignore
 
+# Import MQTT publisher
+from mqtt_client import MqttPublisher
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# Initialize MQTT publisher
+publisher = MqttPublisher()
 
 def proto_to_dt(ts: Timestamp) -> datetime:
     return ts.ToDatetime().replace(tzinfo=timezone.utc)
@@ -130,9 +136,27 @@ class TelemetryServiceImpl(telemetry_pb2_grpc.TelemetryServiceServicer):
             with self.db.get_connection().cursor() as cur:
                 cur.execute(sql, vals)
                 new_id = cur.fetchone()["id"]
+            
             t_out = telemetry_pb2.Telemetry()
             t_out.CopyFrom(t)
             t_out.id = new_id
+            
+            # Publish to MQTT after successful database insertion
+            publisher.publish({
+                "id": t_out.id,
+                "driver": t_out.driver,
+                "timestampUtc": t_out.timestamp.ToDatetime().isoformat() + "Z",
+                "lapNumber": t_out.lap_number,
+                "x": t_out.x,
+                "y": t_out.y,
+                "speed": t_out.speed,
+                "throttle": t_out.throttle,
+                "brake": t_out.brake,
+                "nGear": t_out.n_gear,
+                "rpm": t_out.rpm,
+                "drs": t_out.drs
+            })
+            
             return telemetry_pb2.CreateTelemetryResponse(telemetry=t_out, success=True, message="Created")
         except Exception as e:
             logger.exception("CreateTelemetry failed")
