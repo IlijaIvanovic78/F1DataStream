@@ -1,0 +1,187 @@
+asyncapi: '2.6.0'
+info:
+  title: Analytics Microservice
+  version: '1.0.0'
+  description: |
+    Analytics microservice that subscribes to MQTT telemetry data, 
+    uses MLaaS for lap time predictions, and publishes results to NATS.
+  contact:
+    name: IoT Team
+    email: iot-team@example.com
+
+servers:
+  mqtt-broker:
+    url: mqtt://mqtt:1883
+    protocol: mqtt
+    description: MQTT message broker for telemetry events
+  nats-broker:
+    url: nats://nats:4222
+    protocol: nats
+    description: NATS message broker for ML predictions
+
+channels:
+  telemetry/raw:
+    description: Raw telemetry data from F1 vehicles
+    servers:
+      - mqtt-broker
+    subscribe:
+      summary: Receive raw telemetry data
+      operationId: receiveTelemetryData
+      message:
+        $ref: '#/components/messages/TelemetryData'
+  
+  telemetry.predictions:
+    description: ML predictions for lap times
+    servers:
+      - nats-broker
+    publish:
+      summary: Publish lap time predictions
+      operationId: publishLapTimePrediction
+      message:
+        $ref: '#/components/messages/LapTimePrediction'
+
+components:
+  messages:
+    TelemetryData:
+      name: TelemetryData
+      title: Telemetry Data Message
+      summary: Raw telemetry data from F1 vehicle
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TelemetryPayload'
+      
+    LapTimePrediction:
+      name: LapTimePrediction
+      title: Lap Time Prediction Message
+      summary: ML prediction for lap time based on telemetry
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/PredictionPayload'
+
+  schemas:
+    TelemetryPayload:
+      type: object
+      required:
+        - driver
+        - timestamp
+        - lap_number
+        - speed
+        - throttle
+        - brake
+        - n_gear
+        - rpm
+        - drs
+        - x
+        - y
+      properties:
+        driver:
+          type: string
+          description: Driver identifier
+          example: "HAM"
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp
+        lap_number:
+          type: integer
+          description: Current lap number
+          minimum: 1
+        speed:
+          type: number
+          description: Vehicle speed in km/h
+          minimum: 0
+        throttle:
+          type: number
+          description: Throttle position (0-1)
+          minimum: 0
+          maximum: 1
+        brake:
+          type: boolean
+          description: Brake pedal status
+        n_gear:
+          type: integer
+          description: Current gear
+          minimum: 0
+          maximum: 8
+        rpm:
+          type: number
+          description: Engine RPM
+          minimum: 0
+        drs:
+          type: boolean
+          description: DRS (Drag Reduction System) status
+        x:
+          type: number
+          description: X coordinate position
+        y:
+          type: number
+          description: Y coordinate position
+    
+    PredictionPayload:
+      type: object
+      required:
+        - driver
+        - lap_number
+        - predicted_lap_time
+        - confidence_interval
+        - actual_telemetry
+        - timestamp
+        - model_version
+      properties:
+        driver:
+          type: string
+          description: Driver identifier
+          example: "HAM"
+        lap_number:
+          type: integer
+          description: Lap number for prediction
+          minimum: 1
+        predicted_lap_time:
+          type: number
+          description: Predicted lap time in seconds
+          example: 78.453
+        confidence_interval:
+          type: object
+          properties:
+            lower:
+              type: number
+              description: Lower bound of 95% confidence interval
+            upper:
+              type: number
+              description: Upper bound of 95% confidence interval
+          required:
+            - lower
+            - upper
+        actual_telemetry:
+          type: object
+          description: Aggregated telemetry data used for prediction
+          properties:
+            avg_speed:
+              type: number
+              description: Average speed during lap
+            avg_throttle:
+              type: number
+              description: Average throttle position
+            avg_rpm:
+              type: number
+              description: Average RPM
+            used_drs:
+              type: boolean
+              description: Whether DRS was used
+            used_brake:
+              type: boolean
+              description: Whether brakes were used
+          required:
+            - avg_speed
+            - avg_throttle
+            - avg_rpm
+            - used_drs
+            - used_brake
+        timestamp:
+          type: string
+          format: date-time
+          description: Prediction timestamp
+        model_version:
+          type: string
+          description: ML model version used
+          example: "1.0.0"

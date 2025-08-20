@@ -1,0 +1,258 @@
+asyncapi: '2.6.0'
+info:
+  title: MLaaS - Machine Learning as a Service
+  version: '1.0.0'
+  description: |
+    Machine Learning service for F1 lap time prediction.
+    This service provides REST API endpoints for model training and predictions.
+    It processes aggregated telemetry data to predict lap times with confidence intervals.
+  contact:
+    name: IoT Team
+    email: iot-team@example.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  production:
+    url: http://mlaas:8000
+    protocol: http
+    description: MLaaS REST API server
+
+channels:
+  /train:
+    description: Model training endpoint
+    servers:
+      - production
+    publish:
+      summary: Train the lap time prediction model
+      operationId: trainModel
+      message:
+        $ref: '#/components/messages/TrainingRequest'
+    subscribe:
+      summary: Receive training result
+      operationId: receiveTrainingResult
+      message:
+        $ref: '#/components/messages/TrainingResponse'
+  
+  /predict:
+    description: Lap time prediction endpoint
+    servers:
+      - production
+    publish:
+      summary: Request lap time prediction
+      operationId: predictLapTime
+      message:
+        $ref: '#/components/messages/PredictionRequest'
+    subscribe:
+      summary: Receive lap time prediction
+      operationId: receivePrediction
+      message:
+        $ref: '#/components/messages/PredictionResponse'
+
+components:
+  messages:
+    TrainingRequest:
+      name: TrainingRequest
+      title: Model Training Request
+      summary: Request to train the ML model
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          data_path:
+            type: string
+            description: Optional path to training data
+            example: "/data/f1_telemetry_wide.csv"
+    
+    TrainingResponse:
+      name: TrainingResponse
+      title: Model Training Response
+      summary: Result of model training
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TrainingResult'
+    
+    PredictionRequest:
+      name: PredictionRequest
+      title: Lap Time Prediction Request
+      summary: Request for lap time prediction based on telemetry
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TelemetryFeatures'
+    
+    PredictionResponse:
+      name: PredictionResponse
+      title: Lap Time Prediction Response
+      summary: Predicted lap time with confidence interval
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/PredictionResult'
+
+  schemas:
+    TelemetryFeatures:
+      type: object
+      required:
+        - driver
+        - lap_number
+        - speed
+        - throttle
+        - brake
+        - n_gear
+        - rpm
+        - drs
+        - x
+        - y
+      properties:
+        driver:
+          type: string
+          description: Driver identifier (e.g., HAM, VER, LEC)
+          example: "HAM"
+        lap_number:
+          type: integer
+          description: Current lap number
+          minimum: 1
+          example: 15
+        speed:
+          type: number
+          description: Average speed in km/h
+          minimum: 0
+          maximum: 400
+          example: 285.5
+        throttle:
+          type: number
+          description: Average throttle position (0-1)
+          minimum: 0
+          maximum: 1
+          example: 0.75
+        brake:
+          type: boolean
+          description: Whether brakes were used
+          example: true
+        n_gear:
+          type: integer
+          description: Average gear
+          minimum: 0
+          maximum: 8
+          example: 6
+        rpm:
+          type: number
+          description: Average engine RPM
+          minimum: 0
+          maximum: 15000
+          example: 11500
+        drs:
+          type: boolean
+          description: Whether DRS was activated
+          example: true
+        x:
+          type: number
+          description: Average X position
+          example: 1234.5
+        y:
+          type: number
+          description: Average Y position
+          example: 567.8
+    
+    PredictionResult:
+      type: object
+      required:
+        - predicted_lap_time
+        - confidence_interval
+        - model_version
+        - timestamp
+      properties:
+        predicted_lap_time:
+          type: number
+          description: Predicted lap time in seconds
+          example: 78.453
+        confidence_interval:
+          type: object
+          description: 95% confidence interval for prediction
+          properties:
+            lower:
+              type: number
+              description: Lower bound in seconds
+              example: 77.234
+            upper:
+              type: number
+              description: Upper bound in seconds
+              example: 79.672
+          required:
+            - lower
+            - upper
+        model_version:
+          type: string
+          description: Version of the ML model used
+          example: "1.0.0"
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp of prediction
+          example: "2025-01-20T10:30:45Z"
+    
+    TrainingResult:
+      type: object
+      required:
+        - status
+        - message
+        - metrics
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [success, failed]
+          description: Training status
+        message:
+          type: string
+          description: Descriptive message about training
+          example: "Model trained successfully"
+        metrics:
+          type: object
+          description: Model performance metrics
+          properties:
+            mae:
+              type: number
+              description: Mean Absolute Error in seconds
+              example: 0.456
+            rmse:
+              type: number
+              description: Root Mean Square Error in seconds
+              example: 0.678
+            r2:
+              type: number
+              description: R-squared score
+              example: 0.923
+            test_samples:
+              type: integer
+              description: Number of test samples
+              example: 1234
+          required:
+            - mae
+            - rmse
+            - r2
+            - test_samples
+        timestamp:
+          type: string
+          format: date-time
+          description: Training completion timestamp
+    
+    ModelInfo:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [not_trained, training, trained, loaded]
+          description: Current model status
+        last_trained:
+          type: string
+          format: date-time
+          description: Last training timestamp
+        metrics:
+          $ref: '#/components/schemas/TrainingResult/properties/metrics'
+        feature_importance:
+          type: object
+          description: Top 10 most important features
+          additionalProperties:
+            type: number
+            description: Feature importance score

@@ -121,6 +121,86 @@ services:
     networks:
       - iotnet
 
+  mqttnats:
+    build: ./mqttnats-webclient
+    depends_on:
+      - mqtt
+      - nats
+    ports:
+      - "8082:80"
+    networks:
+      - iotnet
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: iot-nats
+    restart: unless-stopped
+    ports:
+      - "4222:4222"   # NATS client connections
+      - "8222:8222"   # HTTP monitoring
+      - "6222:6222"   # Cluster routing
+    command: 
+      - "-js"         # Enable JetStream
+      - "-m"          # Enable monitoring
+      - "8222"
+      - "-DV"         # Debug and Verbose logging
+      - "--port"
+      - "4222"
+    networks:
+      - iotnet
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "4222"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  mlaas:
+    build: ./mlaas-service
+    environment:
+      DATA_PATH: /data/f1_telemetry_wide.csv
+      MODEL_PATH: /app/models/lap_time_predictor.pkl
+      SCALER_PATH: /app/models/scaler.pkl
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data:ro   # Mount data folder for training
+      - mlaas-models:/app/models  # Persist trained models
+    networks:
+      - iotnet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  analytics:
+    build: ./analytics-service
+    depends_on:
+      - mqtt
+      - nats
+      - mlaas
+    environment:
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
+      MQTT_TOPIC: telemetry/raw
+      MQTT_CLIENT_ID: analytics-service
+      NATS_URL: nats://nats:4222
+      NATS_TOPIC: telemetry.predictions
+      MLAAS_URL: http://mlaas:8000
+      LAP_COMPLETION_THRESHOLD: 10
+    ports:
+      - "8083:8080"   # Analytics HTTP API
+    networks:
+      - iotnet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
   sensorgen:
     build: ./sensor-generator
     depends_on:
@@ -139,3 +219,4 @@ networks:
 
 volumes:
   pgdata:
+  mlaas-models:

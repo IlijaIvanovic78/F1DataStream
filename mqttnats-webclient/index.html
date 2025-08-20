@@ -1,0 +1,368 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>Telemetry Dashboard - MQTT & NATS</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="header">
+    <div class="header-content">
+      <h1 class="header-title">🏎️ F1 Telemetry Dashboard</h1>
+      <p class="header-subtitle">Real-time telemetry events and lap time predictions</p>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="connections-container">
+      <!-- MQTT Connection -->
+      <div class="connection-card">
+        <h3>📡 MQTT Events</h3>
+        <div class="connection-form">
+          <div class="form-group">
+            <label>Status:</label>
+            <span id="mqtt-status" class="status bad">
+              <span class="status-indicator"></span>
+              Disconnected
+            </span>
+          </div>
+          <div class="form-group">
+            <label>Broker:</label>
+            <input id="mqtt-url" value="ws://localhost:9001" size="25" />
+          </div>
+          <div class="form-group">
+            <label>Topic:</label>
+            <input id="mqtt-topic" value="telemetry/events" size="20" />
+          </div>
+          <button id="mqtt-connect" class="btn-connect">Connect</button>
+        </div>
+      </div>
+
+      <!-- NATS Connection -->
+      <div class="connection-card">
+        <h3>🔮 ML Predictions</h3>
+        <div class="connection-form">
+          <div class="form-group">
+            <label>Status:</label>
+            <span id="nats-status" class="status bad">
+              <span class="status-indicator"></span>
+              Disconnected
+            </span>
+          </div>
+          <div class="form-group">
+            <label>Server:</label>
+            <input id="nats-url" value="ws://localhost:9222" size="25" />
+          </div>
+          <div class="form-group">
+            <label>Topic:</label>
+            <input id="nats-topic" value="telemetry.predictions" size="20" />
+          </div>
+          <button id="nats-connect" class="btn-connect">Connect</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value" id="totalEvents">0</div>
+        <div class="stat-label">Total Events</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="speedEvents">0</div>
+        <div class="stat-label">Speed Alerts</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="rpmEvents">0</div>
+        <div class="stat-label">RPM Alerts</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="brakeEvents">0</div>
+        <div class="stat-label">Brake Alerts</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="predictionsCount">0</div>
+        <div class="stat-label">Lap Predictions</div>
+      </div>
+    </div>
+
+    <div class="dual-feed-container">
+      <!-- Events Container (Left) -->
+      <div class="feed-section">
+        <div class="events-header">
+          <span>MQTT Events</span>
+          <button id="clear-events" class="clear-btn">Clear Events</button>
+        </div>
+        <div class="events-list" id="events"></div>
+      </div>
+      
+      <!-- Predictions Container (Right) -->
+      <div class="feed-section">
+        <div class="events-header">
+          <span>ML Predictions</span>
+          <button id="clear-predictions" class="clear-btn">Clear Predictions</button>
+        </div>
+        <div class="events-list" id="predictions"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script>
+    let mqttClient = null;
+    let natsClient = null;
+
+    // Statistics counters
+    let stats = {
+      total: 0,
+      SPEED_OVER_LIMIT: 0,
+      RPM_OVER_LIMIT: 0,
+      HARD_BRAKE_AT_HIGH_SPEED: 0,
+      predictions: 0
+    };
+
+    function updateStats() {
+      document.getElementById('totalEvents').textContent = stats.total;
+      document.getElementById('speedEvents').textContent = stats.SPEED_OVER_LIMIT;
+      document.getElementById('rpmEvents').textContent = stats.RPM_OVER_LIMIT;
+      document.getElementById('brakeEvents').textContent = stats.HARD_BRAKE_AT_HIGH_SPEED;
+      document.getElementById('predictionsCount').textContent = stats.predictions;
+    }
+
+    function formatTimestamp(isoString) {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString();
+    }
+
+    function formatLapTime(seconds) {
+      const minutes = Math.floor(seconds / 60);
+      const secs = (seconds % 60).toFixed(3);
+      return `${minutes}:${secs.padStart(6, '0')}`;
+    }
+
+    function addEventCard(source, data, type = 'event') {
+      // Use separate containers for different types
+      const containerId = type === 'prediction' ? 'predictions' : 'events';
+      const eventsEl = document.getElementById(containerId);
+      
+      if (!eventsEl) {
+        console.error(`Container ${containerId} not found!`);
+        return;
+      }
+      
+      const div = document.createElement('div');
+      div.className = `event-card ${type}`;
+      div.setAttribute('data-type', type);
+
+      if (type === 'prediction') {
+        // ML Prediction card
+        const lapTime = formatLapTime(data.predicted_lap_time);
+        const confidenceLower = formatLapTime(data.confidence_interval.lower);
+        const confidenceUpper = formatLapTime(data.confidence_interval.upper);
+
+        div.innerHTML = `
+          <div class="event-type prediction">LAP TIME PREDICTION</div>
+          <div class="event-details">
+            <div class="prediction-main">
+              <strong>${data.driver}</strong> - Lap ${data.lap_number}
+              <div class="predicted-time">${lapTime}</div>
+              <div class="confidence">CI: ${confidenceLower} - ${confidenceUpper}</div>
+            </div>
+            <div class="telemetry-summary">
+              <span>Avg Speed: ${data.actual_telemetry.avg_speed.toFixed(1)} km/h</span>
+              <span>Avg Throttle: ${(data.actual_telemetry.avg_throttle * 100).toFixed(0)}%</span>
+              <span>Avg RPM: ${data.actual_telemetry.avg_rpm.toFixed(0)}</span>
+              <span>DRS: ${data.actual_telemetry.used_drs ? 'Yes' : 'No'}</span>
+            </div>
+          </div>
+          <div class="event-meta">
+            <span>Source: ${source}</span>
+            <span>Time: ${formatTimestamp(data.timestamp)}</span>
+          </div>
+        `;
+      } else {
+        // Regular event card
+        stats.total++;
+        const eventType = data.type;
+        if (eventType && stats.hasOwnProperty(eventType)) {
+          stats[eventType]++;
+        }
+        updateStats();
+
+        const driver = data.driver || 'Unknown';
+        const value = data.value !== undefined ? data.value.toFixed(1) : 'N/A';
+        const limit = data.limit !== undefined ? data.limit.toFixed(1) : 'N/A';
+        const timestamp = data.timestampUtc ? formatTimestamp(data.timestampUtc) : 'N/A';
+        const lap = data.lapNumber || 'N/A';
+
+        div.innerHTML = `
+          <div class="event-type ${eventType}">${eventType.replace(/_/g, ' ')}</div>
+          <div class="event-details">
+            <strong>${driver}</strong> - Lap ${lap}<br/>
+            Value: <strong>${value}</strong> | Limit: <strong>${limit}</strong><br/>
+            Position: (${data.x?.toFixed(1) || '?'}, ${data.y?.toFixed(1) || '?'})
+          </div>
+          <div class="event-meta">
+            <span>Source: ${source}</span>
+            <span>Time: ${timestamp}</span>
+          </div>
+        `;
+      }
+
+      eventsEl.prepend(div);
+
+      // Keep only last 100 per container
+      while (eventsEl.children.length > 100) {
+        eventsEl.removeChild(eventsEl.lastChild);
+      }
+    }
+
+    function updateStatus(elementId, text, isConnected) {
+      const statusEl = document.getElementById(elementId);
+      statusEl.innerHTML = `<span class="status-indicator"></span>${text}`;
+      statusEl.className = `status ${isConnected ? 'ok' : 'bad'}`;
+    }
+
+    // MQTT Connection
+    document.getElementById('mqtt-connect').onclick = () => {
+      const url = document.getElementById('mqtt-url').value;
+      const topic = document.getElementById('mqtt-topic').value;
+
+      if (mqttClient && mqttClient.connected) {
+        mqttClient.end();
+        document.getElementById('mqtt-connect').textContent = 'Connect';
+        return;
+      }
+
+      updateStatus('mqtt-status', 'Connecting...', false);
+
+      try {
+        mqttClient = mqtt.connect(url, {
+          reconnectPeriod: 5000,
+          connectTimeout: 10000
+        });
+
+        mqttClient.on('connect', () => {
+          updateStatus('mqtt-status', 'Connected', true);
+          document.getElementById('mqtt-connect').textContent = 'Disconnect';
+          
+          mqttClient.subscribe(topic, (err) => {
+            if (!err) {
+              console.log(`Subscribed to MQTT topic: ${topic}`);
+            }
+          });
+        });
+
+        mqttClient.on('error', (err) => {
+          updateStatus('mqtt-status', `Error: ${err.message}`, false);
+          console.error('MQTT Error:', err);
+        });
+
+        mqttClient.on('message', (topic, payload) => {
+          try {
+            const data = JSON.parse(payload.toString());
+            addEventCard('MQTT', data, 'event');
+          } catch (e) {
+            console.error('Failed to parse MQTT message:', e);
+          }
+        });
+
+        mqttClient.on('close', () => {
+          updateStatus('mqtt-status', 'Disconnected', false);
+          document.getElementById('mqtt-connect').textContent = 'Connect';
+        });
+
+      } catch (err) {
+        updateStatus('mqtt-status', `Failed: ${err.message}`, false);
+      }
+    };
+
+    // ML Predictions polling
+    let predictionPolling = null;
+    let lastPredictionCount = 0;
+    let displayedPredictions = new Set(); // Track displayed predictions by unique ID
+    
+    document.getElementById('nats-connect').onclick = async () => {
+      if (predictionPolling) {
+        // Stop polling
+        clearInterval(predictionPolling);
+        predictionPolling = null;
+        updateStatus('nats-status', 'Disconnected', false);
+        document.getElementById('nats-connect').textContent = 'Connect';
+        return;
+      }
+
+      // Start polling Analytics API for ML predictions
+      updateStatus('nats-status', 'Connecting to Analytics API...', false);
+      
+      try {
+        // Test connection
+        const response = await fetch('http://localhost:8083/health');
+        if (!response.ok) throw new Error('Analytics service not available');
+        
+        updateStatus('nats-status', 'Connected (HTTP Polling)', true);
+        document.getElementById('nats-connect').textContent = 'Disconnect';
+        
+        // Start polling every 2 seconds
+        predictionPolling = setInterval(async () => {
+          try {
+            const predResponse = await fetch('http://localhost:8083/predictions');
+            if (predResponse.ok) {
+              const data = await predResponse.json();
+              
+              // Check for new predictions that haven't been displayed
+              data.predictions.forEach(prediction => {
+                // Create unique ID for prediction
+                const predictionId = `${prediction.driver}_${prediction.lap_number}_${prediction.predicted_lap_time}`;
+                
+                if (!displayedPredictions.has(predictionId)) {
+                  displayedPredictions.add(predictionId);
+                  addEventCard('ML', prediction, 'prediction');
+                  stats.predictions++;
+                  stats.total++;
+                  updateStats();
+                }
+              });
+            }
+          } catch (e) {
+            console.warn('Prediction polling error:', e);
+          }
+        }, 2000);
+        
+      } catch (err) {
+        updateStatus('nats-status', `Failed: ${err.message}`, false);
+        console.error('Analytics connection error:', err);
+      }
+    };
+
+    // Clear Events button
+    document.getElementById('clear-events').onclick = () => {
+      document.getElementById('events').innerHTML = '';
+      stats.SPEED_OVER_LIMIT = 0;
+      stats.RPM_OVER_LIMIT = 0;
+      stats.HARD_BRAKE_AT_HIGH_SPEED = 0;
+      // Recalculate total
+      stats.total = stats.predictions;
+      updateStats();
+    };
+
+    // Clear Predictions button
+    document.getElementById('clear-predictions').onclick = () => {
+      document.getElementById('predictions').innerHTML = '';
+      displayedPredictions.clear(); // Reset displayed predictions tracking
+      stats.predictions = 0;
+      // Recalculate total
+      stats.total = stats.SPEED_OVER_LIMIT + stats.RPM_OVER_LIMIT + stats.HARD_BRAKE_AT_HIGH_SPEED;
+      updateStats();
+    };
+
+
+
+    // Initialize
+    updateStats();
+  </script>
+</body>
+
+</html>
