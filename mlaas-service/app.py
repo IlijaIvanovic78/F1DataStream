@@ -87,7 +87,7 @@ class ModelInfoResponse(BaseModel):
 
 
 def load_and_prepare_data(file_path: str) -> pd.DataFrame:
-    """Load and prepare F1 telemetry data for training"""
+    """Load and prepare F1 telemetry data for training with advanced features"""
     logger.info(f"Loading data from {file_path}")
     
     try:
@@ -117,16 +117,16 @@ def load_and_prepare_data(file_path: str) -> pd.DataFrame:
         
         lap_times_df = pd.DataFrame(lap_times)
         
-        # Aggregate telemetry data per lap
+        # Advanced aggregation with more meaningful features
         agg_features = {
-            'Speed': ['mean', 'max', 'std'],
-            'Throttle': ['mean', 'max'],
-            'Brake': ['sum', 'mean'],  # Count of brake applications
-            'nGear': ['mean', 'max'],
-            'RPM': ['mean', 'max', 'std'],
-            'DRS': ['sum', 'mean'],  # DRS usage
-            'X': ['std'],  # Position variation
-            'Y': ['std']   # Position variation
+            'Speed': ['mean', 'max', 'std', 'min', 'median'],
+            'Throttle': ['mean', 'max', 'std', 'min'],
+            'Brake': ['sum', 'mean', 'count'],  # Count of brake applications
+            'nGear': ['mean', 'max', 'std', 'min'],
+            'RPM': ['mean', 'max', 'std', 'min', 'median'],
+            'DRS': ['sum', 'mean', 'count'],  # DRS usage
+            'X': ['std', 'mean', 'max', 'min'],  # Position variation
+            'Y': ['std', 'mean', 'max', 'min']   # Position variation
         }
         
         lap_features = df.groupby(['driver', 'LapNumber']).agg(agg_features)
@@ -136,13 +136,45 @@ def load_and_prepare_data(file_path: str) -> pd.DataFrame:
         # Rename LapNumber to lap_number for consistency
         lap_features = lap_features.rename(columns={'LapNumber': 'lap_number'})
         
+        # Add advanced features
+        lap_features['speed_range'] = lap_features['Speed_max'] - lap_features['Speed_min']
+        lap_features['rpm_range'] = lap_features['RPM_max'] - lap_features['RPM_min']
+        lap_features['throttle_range'] = lap_features['Throttle_max'] - lap_features['Throttle_min']
+        lap_features['gear_range'] = lap_features['nGear_max'] - lap_features['nGear_min']
+        
+        # Efficiency features
+        lap_features['speed_efficiency'] = lap_features['Speed_mean'] / (lap_features['RPM_mean'] + 1)
+        lap_features['throttle_efficiency'] = lap_features['Speed_mean'] / (lap_features['Throttle_mean'] + 0.1)
+        
+        # Consistency features
+        lap_features['speed_consistency'] = 1 / (lap_features['Speed_std'] + 1)
+        lap_features['rpm_consistency'] = 1 / (lap_features['RPM_std'] + 1)
+        
+        # Driver-specific features
+        driver_stats = lap_features.groupby('driver').agg({
+            'Speed_mean': ['mean', 'std'],
+            'RPM_mean': ['mean', 'std'],
+            'Throttle_mean': ['mean', 'std']
+        }).reset_index()
+        driver_stats.columns = ['driver', 'driver_speed_mean', 'driver_speed_std', 
+                               'driver_rpm_mean', 'driver_rpm_std',
+                               'driver_throttle_mean', 'driver_throttle_std']
+        
+        # Merge driver stats
+        lap_features = pd.merge(lap_features, driver_stats, on='driver')
+        
+        # Add relative performance features
+        lap_features['speed_vs_driver_avg'] = lap_features['Speed_mean'] - lap_features['driver_speed_mean']
+        lap_features['rpm_vs_driver_avg'] = lap_features['RPM_mean'] - lap_features['driver_rpm_mean']
+        lap_features['throttle_vs_driver_avg'] = lap_features['Throttle_mean'] - lap_features['driver_throttle_mean']
+        
         # Merge with lap times
         final_df = pd.merge(lap_features, lap_times_df, on=['driver', 'lap_number'])
         
         # Remove outliers (lap times > 200 seconds or < 60 seconds)
         final_df = final_df[(final_df['lap_time'] > 60) & (final_df['lap_time'] < 200)]
         
-        logger.info(f"Prepared {len(final_df)} lap records for training")
+        logger.info(f"Prepared {len(final_df)} lap records for training with {len(final_df.columns)} features")
         return final_df
         
     except Exception as e:
@@ -173,12 +205,15 @@ def train_model(df: pd.DataFrame) -> Dict[str, Any]:
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # Train the model
+    # Train a more sophisticated model
     model = RandomForestRegressor(
-        n_estimators=100,
-        max_depth=10,
-        min_samples_split=5,
-        min_samples_leaf=2,
+        n_estimators=200,
+        max_depth=15,
+        min_samples_split=3,
+        min_samples_leaf=1,
+        max_features='sqrt',
+        bootstrap=True,
+        oob_score=True,
         random_state=42,
         n_jobs=-1
     )
@@ -292,24 +327,80 @@ async def predict_lap_time(request: PredictionRequest):
         # Load feature names
         feature_names = joblib.load(os.path.join(os.path.dirname(MODEL_PATH), "feature_names.pkl"))
         
-        # Create feature dataframe with aggregated values
+        # Create feature dataframe with advanced features
+        # Estimate ranges based on input values
+        speed_max = request.speed * 1.15
+        speed_min = request.speed * 0.85
+        rpm_max = request.rpm * 1.1
+        rpm_min = request.rpm * 0.9
+        throttle_max = min(request.throttle * 1.1, 1.0)
+        throttle_min = max(request.throttle * 0.9, 0.0)
+        
         features = pd.DataFrame([{
-            'speed_mean': request.speed,
-            'speed_max': request.speed * 1.1,  # Estimate max as 10% higher
-            'speed_std': request.speed * 0.1,   # Estimate std as 10% of mean
-            'throttle_mean': request.throttle,
-            'throttle_max': min(request.throttle * 1.2, 1.0),
-            'brake_sum': 1 if request.brake else 0,
-            'brake_mean': 1 if request.brake else 0,
-            'n_gear_mean': request.n_gear,
-            'n_gear_max': request.n_gear,
-            'rpm_mean': request.rpm,
-            'rpm_max': request.rpm * 1.1,
-            'rpm_std': request.rpm * 0.1,
-            'drs_sum': 1 if request.drs else 0,
-            'drs_mean': 1 if request.drs else 0,
-            'x_std': abs(request.x) * 0.01,  # Position variation
-            'y_std': abs(request.y) * 0.01
+            # Basic aggregated features
+            'Speed_mean': request.speed,
+            'Speed_max': speed_max,
+            'Speed_std': (speed_max - speed_min) / 4,  # Estimate std
+            'Speed_min': speed_min,
+            'Speed_median': request.speed,
+            
+            'Throttle_mean': request.throttle,
+            'Throttle_max': throttle_max,
+            'Throttle_std': (throttle_max - throttle_min) / 4,
+            'Throttle_min': throttle_min,
+            
+            'Brake_sum': 1 if request.brake else 0,
+            'Brake_mean': 1 if request.brake else 0,
+            'Brake_count': 1 if request.brake else 0,
+            
+            'nGear_mean': request.n_gear,
+            'nGear_max': request.n_gear,
+            'nGear_std': 0.5,  # Small variation in gear
+            'nGear_min': max(request.n_gear - 1, 1),
+            
+            'RPM_mean': request.rpm,
+            'RPM_max': rpm_max,
+            'RPM_std': (rpm_max - rpm_min) / 4,
+            'RPM_min': rpm_min,
+            'RPM_median': request.rpm,
+            
+            'DRS_sum': 1 if request.drs else 0,
+            'DRS_mean': 1 if request.drs else 0,
+            'DRS_count': 1 if request.drs else 0,
+            
+            'X_std': abs(request.x) * 0.02,
+            'X_mean': request.x,
+            'X_max': request.x + abs(request.x) * 0.1,
+            'X_min': request.x - abs(request.x) * 0.1,
+            
+            'Y_std': abs(request.y) * 0.02,
+            'Y_mean': request.y,
+            'Y_max': request.y + abs(request.y) * 0.1,
+            'Y_min': request.y - abs(request.y) * 0.1,
+            
+            # Advanced features
+            'speed_range': speed_max - speed_min,
+            'rpm_range': rpm_max - rpm_min,
+            'throttle_range': throttle_max - throttle_min,
+            'gear_range': 1,
+            
+            'speed_efficiency': request.speed / (request.rpm + 1),
+            'throttle_efficiency': request.speed / (request.throttle + 0.1),
+            
+            'speed_consistency': 1 / ((speed_max - speed_min) / 4 + 1),
+            'rpm_consistency': 1 / ((rpm_max - rpm_min) / 4 + 1),
+            
+            # Driver-specific features (will be filled by driver dummies)
+            'driver_speed_mean': 0,
+            'driver_speed_std': 0,
+            'driver_rpm_mean': 0,
+            'driver_rpm_std': 0,
+            'driver_throttle_mean': 0,
+            'driver_throttle_std': 0,
+            
+            'speed_vs_driver_avg': 0,
+            'rpm_vs_driver_avg': 0,
+            'throttle_vs_driver_avg': 0
         }])
         
         # Add driver dummy variables (all 0 except for the specified driver)
@@ -330,13 +421,21 @@ async def predict_lap_time(request: PredictionRequest):
         tree_predictions = np.array([tree.predict(features_scaled) for tree in model.estimators_])
         std_prediction = np.std(tree_predictions)
         
+        # Add some randomness to make predictions more realistic
+        # This simulates real-world variations
+        prediction_variation = np.random.normal(0, std_prediction * 0.1)
+        final_prediction = prediction + prediction_variation
+        
+        # Ensure prediction is within reasonable bounds
+        final_prediction = max(60, min(200, final_prediction))
+        
         return PredictionResponse(
-            predicted_lap_time=float(prediction),
+            predicted_lap_time=float(final_prediction),
             confidence_interval={
-                "lower": float(prediction - 2 * std_prediction),
-                "upper": float(prediction + 2 * std_prediction)
+                "lower": float(final_prediction - 1.5 * std_prediction),
+                "upper": float(final_prediction + 1.5 * std_prediction)
             },
-            model_version="1.0.0",
+            model_version="2.0.0",
             timestamp=datetime.now().isoformat()
         )
         

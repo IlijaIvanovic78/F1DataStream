@@ -97,7 +97,7 @@
         </div>
         <div class="events-list" id="events"></div>
       </div>
-      
+
       <!-- Predictions Container (Right) -->
       <div class="feed-section">
         <div class="events-header">
@@ -146,12 +146,12 @@
       // Use separate containers for different types
       const containerId = type === 'prediction' ? 'predictions' : 'events';
       const eventsEl = document.getElementById(containerId);
-      
+
       if (!eventsEl) {
         console.error(`Container ${containerId} not found!`);
         return;
       }
-      
+
       const div = document.createElement('div');
       div.className = `event-card ${type}`;
       div.setAttribute('data-type', type);
@@ -247,7 +247,7 @@
         mqttClient.on('connect', () => {
           updateStatus('mqtt-status', 'Connected', true);
           document.getElementById('mqtt-connect').textContent = 'Disconnect';
-          
+
           mqttClient.subscribe(topic, (err) => {
             if (!err) {
               console.log(`Subscribed to MQTT topic: ${topic}`);
@@ -283,7 +283,7 @@
     let predictionPolling = null;
     let lastPredictionCount = 0;
     let displayedPredictions = new Set(); // Track displayed predictions by unique ID
-    
+
     document.getElementById('nats-connect').onclick = async () => {
       if (predictionPolling) {
         // Stop polling
@@ -296,27 +296,27 @@
 
       // Start polling Analytics API for ML predictions
       updateStatus('nats-status', 'Connecting to Analytics API...', false);
-      
+
       try {
         // Test connection
         const response = await fetch('http://localhost:8083/health');
         if (!response.ok) throw new Error('Analytics service not available');
-        
+
         updateStatus('nats-status', 'Connected (HTTP Polling)', true);
         document.getElementById('nats-connect').textContent = 'Disconnect';
-        
+
         // Start polling every 2 seconds
         predictionPolling = setInterval(async () => {
           try {
             const predResponse = await fetch('http://localhost:8083/predictions');
             if (predResponse.ok) {
               const data = await predResponse.json();
-              
+
               // Check for new predictions that haven't been displayed
               data.predictions.forEach(prediction => {
                 // Create unique ID for prediction
                 const predictionId = `${prediction.driver}_${prediction.lap_number}_${prediction.predicted_lap_time}`;
-                
+
                 if (!displayedPredictions.has(predictionId)) {
                   displayedPredictions.add(predictionId);
                   addEventCard('ML', prediction, 'prediction');
@@ -330,7 +330,7 @@
             console.warn('Prediction polling error:', e);
           }
         }, 2000);
-        
+
       } catch (err) {
         updateStatus('nats-status', `Failed: ${err.message}`, false);
         console.error('Analytics connection error:', err);

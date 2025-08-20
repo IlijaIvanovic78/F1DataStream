@@ -289,12 +289,12 @@ class AnalyticsService:
             return None
             
         try:
-            # Prepare request
+            # Prepare request with more realistic values
             request_data = {
                 'driver': lap_data['driver'],
                 'lap_number': lap_data['lap_number'],
                 'speed': lap_data['speed'],
-                'throttle': lap_data['throttle'],
+                'throttle': lap_data['throttle'] / 100.0,  # Convert to 0-1 range
                 'brake': lap_data['brake'],
                 'n_gear': lap_data['n_gear'],
                 'rpm': lap_data['rpm'],
@@ -331,7 +331,7 @@ class AnalyticsService:
                 'confidence_interval': prediction['confidence_interval'],
                 'actual_telemetry': {
                     'avg_speed': lap_data['speed'],
-                    'avg_throttle': lap_data['throttle'],
+                    'avg_throttle': lap_data['throttle'] / 100.0,  # Convert to 0-1 range for display
                     'avg_rpm': lap_data['rpm'],
                     'used_drs': lap_data['drs'],
                     'used_brake': lap_data['brake']
