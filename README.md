@@ -1,11 +1,11 @@
-# 🚗 IoT Telemetry - Data Management System sa ML Predikcijama
+#  IoT Telemetry - Data Management System sa ML Predikcijama
 
 Ovaj projekat implementira **IoT sistem za prikupljanje, upravljanje i analizu telemetrijskih podataka sa F1 vozila**.  
 Sistem koristi mašinsko učenje za predikciju vremena kruga na osnovu telemetrijskih podataka.
 
 ---
 
-## 🏗️ Arhitektura
+##  Arhitektura
 
 ```
 ┌─────────────────┐    HTTP/REST     ┌─────────────────┐    gRPC      ┌─────────────────┐
@@ -42,7 +42,7 @@ Sistem koristi mašinsko učenje za predikciju vremena kruga na osnovu telemetri
 
 ---
 
-## 📂 Struktura projekta
+## Struktura projekta
 
 ```
 IOT/
@@ -83,7 +83,7 @@ IOT/
 
 ---
 
-## 🚀 Pokretanje
+##  Pokretanje
 
 ### 1. Korišćenjem Docker Compose (preporučeno)
 
@@ -130,7 +130,7 @@ docker-compose down -v
 
 ---
 
-## 🤖 Machine Learning Funkcionalnosti
+## Machine Learning Funkcionalnosti
 
 Sistem koristi **Random Forest Regressor** model za predikciju vremena kruga na osnovu:
 - Prosečne brzine, throttle pozicije i RPM-a
@@ -148,7 +148,7 @@ Sistem koristi **Random Forest Regressor** model za predikciju vremena kruga na 
 
 ---
 
-## 📖 Dokumentacija i UI
+## Dokumentacija i UI
 
 ### Web Interfejsi:
 - **MqttNats Dashboard** → [http://localhost:8082](http://localhost:8082) - Prikazuje MQTT događaje i ML predikcije
@@ -169,7 +169,7 @@ Sistem koristi **Random Forest Regressor** model za predikciju vremena kruga na 
 
 ---
 
-## 🛠️ Tehnologije
+##  Tehnologije
 
 - **.NET 7 (C#)** – REST API Gateway
 - **Python** – Mikroservisi:
@@ -185,7 +185,7 @@ Sistem koristi **Random Forest Regressor** model za predikciju vremena kruga na 
 
 ---
 
-## 📌 Napomene
+##  Napomene
 
 ### Portovi sistema:
 - **5000** - Gateway REST API (.NET)
