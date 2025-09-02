@@ -6,30 +6,27 @@ from typing import Dict, Any, List
 import paho.mqtt.client as mqtt
 from dateutil import parser as dateparser
 
-# Configure logging
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger('EventManager')
 
-# Configuration from environment variables
 MQTT_HOST = os.getenv("MQTT_HOST", "mqtt")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 TOPIC_IN = os.getenv("MQTT_TOPIC_RAW", "telemetry/raw")
 TOPIC_OUT = os.getenv("MQTT_TOPIC_EVENTS", "telemetry/events")
 QOS = int(os.getenv("MQTT_QOS", "1"))
 
-# Event detection thresholds (configurable via environment)
 SPEED_MAX = float(os.getenv("RULE_SPEED_MAX", "310"))
 RPM_MAX = float(os.getenv("RULE_RPM_MAX", "11500"))
 BRAKE_ALERT_SPEED = float(os.getenv("RULE_BRAKE_ALERT_SPEED", "280"))
 
-# Statistics
+
 events_detected = 0
 messages_processed = 0
 
-# MQTT client setup
 client = mqtt.Client(
     client_id=os.getenv("MQTT_CLIENT_ID", "eventmanager-sub"), 
     clean_session=True
@@ -37,14 +34,6 @@ client = mqtt.Client(
 
 
 def detect_events(msg: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """
-    Detects telemetry events based on configurable rules.
-    
-    Rules:
-    - SPEED_OVER_LIMIT: Speed exceeds maximum threshold
-    - RPM_OVER_LIMIT: RPM exceeds maximum threshold  
-    - HARD_BRAKE_AT_HIGH_SPEED: Braking while speed is above threshold
-    """
     global events_detected
     
     events = []
@@ -55,13 +44,11 @@ def detect_events(msg: Dict[str, Any]) -> List[Dict[str, Any]]:
         brake = bool(msg.get("brake", False))
         ts = msg.get("timestampUtc")
         
-        # Normalize timestamp to ISO format
         try:
             ts_iso = dateparser.parse(ts).isoformat()
         except Exception:
-            ts_iso = ts  # Use original if parsing fails
+            ts_iso = ts 
         
-        # Base event data
         base = {
             "driver": msg.get("driver"),
             "lapNumber": msg.get("lapNumber"),
@@ -70,7 +57,6 @@ def detect_events(msg: Dict[str, Any]) -> List[Dict[str, Any]]:
             "y": msg.get("y")
         }
         
-        # Rule 1: Speed over limit
         if spd > SPEED_MAX:
             events.append({
                 **base,
@@ -80,7 +66,6 @@ def detect_events(msg: Dict[str, Any]) -> List[Dict[str, Any]]:
             })
             logger.warning(f"SPEED_OVER_LIMIT: {msg.get('driver')} - {spd} km/h > {SPEED_MAX}")
         
-        # Rule 2: RPM over limit
         if rpm > RPM_MAX:
             events.append({
                 **base,
@@ -90,7 +75,6 @@ def detect_events(msg: Dict[str, Any]) -> List[Dict[str, Any]]:
             })
             logger.warning(f"RPM_OVER_LIMIT: {msg.get('driver')} - {rpm} RPM > {RPM_MAX}")
         
-        # Rule 3: Hard braking at high speed
         if brake and spd > BRAKE_ALERT_SPEED:
             events.append({
                 **base,
@@ -109,7 +93,6 @@ def detect_events(msg: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 
 def on_connect(client, userdata, flags, rc):
-    """Callback for MQTT connection"""
     if rc == 0:
         logger.info(f"Connected to MQTT broker {MQTT_HOST}:{MQTT_PORT}")
         client.subscribe(TOPIC_IN, qos=QOS)
@@ -124,27 +107,24 @@ def on_connect(client, userdata, flags, rc):
 
 
 def on_disconnect(client, userdata, rc):
-    """Callback for MQTT disconnection"""
     logger.warning(f"Disconnected from MQTT broker: {rc}")
 
 
 def on_message(client, userdata, message):
-    """Process incoming telemetry messages and detect events"""
     global messages_processed
     
     try:
-        # Parse incoming telemetry message
+
         payload = json.loads(message.payload.decode("utf-8"))
         messages_processed += 1
         
-        # Log periodic statistics
+
         if messages_processed % 100 == 0:
             logger.info(f"Processed {messages_processed} messages, detected {events_detected} events")
         
-        # Detect events based on telemetry data
+
         detected_events = detect_events(payload)
         
-        # Publish each detected event
         for event in detected_events:
             try:
                 event_json = json.dumps(event, default=str)
@@ -165,20 +145,18 @@ def on_message(client, userdata, message):
 
 
 def main():
-    """Main EventManager application"""
     logger.info("Starting EventManager microservice...")
     
-    # Set up MQTT client callbacks
+
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
     client.on_message = on_message
     
-    # Connect to MQTT broker
+
     try:
         logger.info(f"Connecting to MQTT broker at {MQTT_HOST}:{MQTT_PORT}")
         client.connect_async(MQTT_HOST, MQTT_PORT, keepalive=30)
         
-        # Start the MQTT client loop
         client.loop_forever()
         
     except KeyboardInterrupt:

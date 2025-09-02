@@ -17,25 +17,21 @@ services:
   datamanager:
     build: ./datamanager-py
     environment:
-      # PostgreSQL Configuration
       POSTGRES_HOST: postgres
       POSTGRES_DB: telemetry
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_PORT: 5432
       
-      # MQTT Configuration  
       MQTT_HOST: mqtt
       MQTT_PORT: 1883
       MQTT_TOPIC_RAW: telemetry/raw
       MQTT_QOS: 1
       MQTT_CLIENT_ID: datamanager-pub
       
-      # gRPC Server Configuration
       GRPC_HOST: 0.0.0.0
       GRPC_PORT: 50051
       
-      # Development settings
       DEBUG: true
     ports:
       - "50051:50051"
@@ -79,8 +75,8 @@ services:
     volumes:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     ports:
-      - "1883:1883"   # MQTT TCP
-      - "9001:9001"   # MQTT over WebSockets
+      - "1883:1883"  
+      - "9001:9001"   
     networks:
       - iotnet
     healthcheck:
@@ -112,15 +108,6 @@ services:
       retries: 5
       start_period: 10s
 
-  mqttweb:
-    build: ./mqtt-webclient
-    depends_on:
-      - mqtt
-    ports:
-      - "8081:80"
-    networks:
-      - iotnet
-
   mqttnats:
     build: ./mqttnats-webclient
     depends_on:
@@ -136,14 +123,14 @@ services:
     container_name: iot-nats
     restart: unless-stopped
     ports:
-      - "4222:4222"   # NATS client connections
-      - "8222:8222"   # HTTP monitoring
-      - "6222:6222"   # Cluster routing
+      - "4222:4222"   
+      - "8222:8222"   
+      - "6222:6222"   
     command: 
-      - "-js"         # Enable JetStream
-      - "-m"          # Enable monitoring
+      - "-js"         
+      - "-m"         
       - "8222"
-      - "-DV"         # Debug and Verbose logging
+      - "-DV"        
       - "--port"
       - "4222"
     networks:
@@ -164,8 +151,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./data:/data:ro   # Mount data folder for training
-      - mlaas-models:/app/models  # Persist trained models
+      - ./data:/data:ro  
+      - mlaas-models:/app/models 
     networks:
       - iotnet
     healthcheck:
@@ -191,7 +178,7 @@ services:
       MLAAS_URL: http://mlaas:8000
       LAP_COMPLETION_THRESHOLD: 10
     ports:
-      - "8083:8080"   # Analytics HTTP API
+      - "8083:8080"  
     networks:
       - iotnet
     healthcheck:
@@ -208,9 +195,9 @@ services:
     networks:
       - iotnet
     volumes:
-      - ./data:/data   # Mount data folder containing CSV files
+      - ./data:/data   
     environment:
-      - PYTHONUNBUFFERED=1  # For real-time logging
+      - PYTHONUNBUFFERED=1 
     command: ["python", "send_stream.py", "--path", "/data/f1_telemetry_wide.csv", "--base-url", "http://gateway:8080", "--rate", "50", "--burst", "10"]
 
 networks:

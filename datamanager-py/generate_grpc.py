@@ -19,12 +19,6 @@ def generate_grpc_stubs():
     print(f"Generating gRPC stubs from {proto_file}")
     print(f"Output directory: {output_dir}")
     
-
-    # python -m grpc_tools.protoc \
-    # --proto_path=../ \
-    # --python_out=gen/ \
-    # --grpc_python_out=gen/ \
-    # telemetry.proto
     try:
         cmd = [
             sys.executable, "-m", "grpc_tools.protoc",

@@ -21,21 +21,21 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-# Configure logging
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# FastAPI app
+
 app = FastAPI(
     title="MLaaS - F1 Lap Time Prediction",
     description="Machine Learning service for predicting F1 lap times based on telemetry data",
     version="1.0.0"
 )
 
-# Global variables for model and scaler
+
 model = None
 scaler = None
 model_info = {
@@ -45,7 +45,7 @@ model_info = {
     "feature_importance": {}
 }
 
-# Data path
+
 DATA_PATH = os.getenv("DATA_PATH", "/data/f1_telemetry_wide.csv")
 MODEL_PATH = os.getenv("MODEL_PATH", "/app/models/lap_time_predictor.pkl")
 SCALER_PATH = os.getenv("SCALER_PATH", "/app/models/scaler.pkl")
@@ -91,16 +91,15 @@ def load_and_prepare_data(file_path: str) -> pd.DataFrame:
     logger.info(f"Loading data from {file_path}")
     
     try:
-        # Load the CSV file
+
         df = pd.read_csv(file_path)
         logger.info(f"Loaded {len(df)} rows of data")
         
-        # Calculate lap times (time difference between consecutive laps for same driver)
+
         df['timestamp'] = pd.to_datetime(df['timestamp'], format='ISO8601', errors='coerce')
-        df = df.dropna(subset=['timestamp'])  # Remove rows with unparseable timestamps
+        df = df.dropna(subset=['timestamp'])  
         df = df.sort_values(['driver', 'LapNumber', 'timestamp'])
         
-        # Calculate lap time for each driver
         lap_times = []
         for driver in df['driver'].unique():
             driver_data = df[df['driver'] == driver]
@@ -117,40 +116,37 @@ def load_and_prepare_data(file_path: str) -> pd.DataFrame:
         
         lap_times_df = pd.DataFrame(lap_times)
         
-        # Advanced aggregation with more meaningful features
         agg_features = {
             'Speed': ['mean', 'max', 'std', 'min', 'median'],
             'Throttle': ['mean', 'max', 'std', 'min'],
-            'Brake': ['sum', 'mean', 'count'],  # Count of brake applications
+            'Brake': ['sum', 'mean', 'count'], 
             'nGear': ['mean', 'max', 'std', 'min'],
             'RPM': ['mean', 'max', 'std', 'min', 'median'],
-            'DRS': ['sum', 'mean', 'count'],  # DRS usage
-            'X': ['std', 'mean', 'max', 'min'],  # Position variation
-            'Y': ['std', 'mean', 'max', 'min']   # Position variation
+            'DRS': ['sum', 'mean', 'count'],  
+            'X': ['std', 'mean', 'max', 'min'],  
+            'Y': ['std', 'mean', 'max', 'min']  
         }
         
         lap_features = df.groupby(['driver', 'LapNumber']).agg(agg_features)
         lap_features.columns = ['_'.join(col).strip() for col in lap_features.columns.values]
         lap_features = lap_features.reset_index()
         
-        # Rename LapNumber to lap_number for consistency
+
         lap_features = lap_features.rename(columns={'LapNumber': 'lap_number'})
-        
-        # Add advanced features
+
         lap_features['speed_range'] = lap_features['Speed_max'] - lap_features['Speed_min']
         lap_features['rpm_range'] = lap_features['RPM_max'] - lap_features['RPM_min']
         lap_features['throttle_range'] = lap_features['Throttle_max'] - lap_features['Throttle_min']
         lap_features['gear_range'] = lap_features['nGear_max'] - lap_features['nGear_min']
-        
-        # Efficiency features
+
         lap_features['speed_efficiency'] = lap_features['Speed_mean'] / (lap_features['RPM_mean'] + 1)
         lap_features['throttle_efficiency'] = lap_features['Speed_mean'] / (lap_features['Throttle_mean'] + 0.1)
         
-        # Consistency features
+
         lap_features['speed_consistency'] = 1 / (lap_features['Speed_std'] + 1)
         lap_features['rpm_consistency'] = 1 / (lap_features['RPM_std'] + 1)
         
-        # Driver-specific features
+
         driver_stats = lap_features.groupby('driver').agg({
             'Speed_mean': ['mean', 'std'],
             'RPM_mean': ['mean', 'std'],
@@ -160,18 +156,17 @@ def load_and_prepare_data(file_path: str) -> pd.DataFrame:
                                'driver_rpm_mean', 'driver_rpm_std',
                                'driver_throttle_mean', 'driver_throttle_std']
         
-        # Merge driver stats
+
         lap_features = pd.merge(lap_features, driver_stats, on='driver')
-        
-        # Add relative performance features
+
         lap_features['speed_vs_driver_avg'] = lap_features['Speed_mean'] - lap_features['driver_speed_mean']
         lap_features['rpm_vs_driver_avg'] = lap_features['RPM_mean'] - lap_features['driver_rpm_mean']
         lap_features['throttle_vs_driver_avg'] = lap_features['Throttle_mean'] - lap_features['driver_throttle_mean']
         
-        # Merge with lap times
+
         final_df = pd.merge(lap_features, lap_times_df, on=['driver', 'lap_number'])
         
-        # Remove outliers (lap times > 200 seconds or < 60 seconds)
+
         final_df = final_df[(final_df['lap_time'] > 60) & (final_df['lap_time'] < 200)]
         
         logger.info(f"Prepared {len(final_df)} lap records for training with {len(final_df.columns)} features")
@@ -188,24 +183,24 @@ def train_model(df: pd.DataFrame) -> Dict[str, Any]:
     
     logger.info("Starting model training")
     
-    # Prepare features and target
+
     feature_columns = [col for col in df.columns if col not in ['driver', 'lap_number', 'lap_time']]
     X = df[feature_columns]
     y = df['lap_time']
     
-    # One-hot encode driver names
+
     driver_dummies = pd.get_dummies(df['driver'], prefix='driver')
     X = pd.concat([X, driver_dummies], axis=1)
     
-    # Split the data
+
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    # Scale the features
+
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # Train a more sophisticated model
+
     model = RandomForestRegressor(
         n_estimators=200,
         max_depth=15,
@@ -220,7 +215,7 @@ def train_model(df: pd.DataFrame) -> Dict[str, Any]:
     
     model.fit(X_train_scaled, y_train)
     
-    # Make predictions and calculate metrics
+
     y_pred = model.predict(X_test_scaled)
     
     mae = mean_absolute_error(y_test, y_pred)
@@ -228,12 +223,11 @@ def train_model(df: pd.DataFrame) -> Dict[str, Any]:
     rmse = np.sqrt(mse)
     r2 = r2_score(y_test, y_pred)
     
-    # Get feature importance
+
     feature_importance = dict(zip(X.columns, model.feature_importances_))
-    # Sort and get top 10 features
+
     top_features = dict(sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)[:10])
-    
-    # Update model info
+
     model_info = {
         "status": "trained",
         "last_trained": datetime.now().isoformat(),
@@ -246,7 +240,6 @@ def train_model(df: pd.DataFrame) -> Dict[str, Any]:
         "feature_importance": top_features
     }
     
-    # Save the model and scaler
     os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
     joblib.dump(model, MODEL_PATH)
     joblib.dump(scaler, SCALER_PATH)
@@ -292,14 +285,11 @@ async def health_check():
 async def train_model_endpoint(background_tasks: BackgroundTasks):
     """Train the lap time prediction model"""
     try:
-        # Check if data file exists
         if not os.path.exists(DATA_PATH):
             raise HTTPException(status_code=404, detail=f"Data file not found at {DATA_PATH}")
         
-        # Load and prepare data
         df = load_and_prepare_data(DATA_PATH)
         
-        # Train model
         metrics = train_model(df)
         
         return TrainingResponse(
@@ -324,11 +314,9 @@ async def predict_lap_time(request: PredictionRequest):
         )
     
     try:
-        # Load feature names
+
         feature_names = joblib.load(os.path.join(os.path.dirname(MODEL_PATH), "feature_names.pkl"))
         
-        # Create feature dataframe with advanced features
-        # Estimate ranges based on input values
         speed_max = request.speed * 1.15
         speed_min = request.speed * 0.85
         rpm_max = request.rpm * 1.1
@@ -337,10 +325,9 @@ async def predict_lap_time(request: PredictionRequest):
         throttle_min = max(request.throttle * 0.9, 0.0)
         
         features = pd.DataFrame([{
-            # Basic aggregated features
             'Speed_mean': request.speed,
             'Speed_max': speed_max,
-            'Speed_std': (speed_max - speed_min) / 4,  # Estimate std
+            'Speed_std': (speed_max - speed_min) / 4,  
             'Speed_min': speed_min,
             'Speed_median': request.speed,
             
@@ -355,7 +342,7 @@ async def predict_lap_time(request: PredictionRequest):
             
             'nGear_mean': request.n_gear,
             'nGear_max': request.n_gear,
-            'nGear_std': 0.5,  # Small variation in gear
+            'nGear_std': 0.5,  
             'nGear_min': max(request.n_gear - 1, 1),
             
             'RPM_mean': request.rpm,
@@ -378,7 +365,6 @@ async def predict_lap_time(request: PredictionRequest):
             'Y_max': request.y + abs(request.y) * 0.1,
             'Y_min': request.y - abs(request.y) * 0.1,
             
-            # Advanced features
             'speed_range': speed_max - speed_min,
             'rpm_range': rpm_max - rpm_min,
             'throttle_range': throttle_max - throttle_min,
@@ -390,7 +376,6 @@ async def predict_lap_time(request: PredictionRequest):
             'speed_consistency': 1 / ((speed_max - speed_min) / 4 + 1),
             'rpm_consistency': 1 / ((rpm_max - rpm_min) / 4 + 1),
             
-            # Driver-specific features (will be filled by driver dummies)
             'driver_speed_mean': 0,
             'driver_speed_std': 0,
             'driver_rpm_mean': 0,
@@ -403,30 +388,22 @@ async def predict_lap_time(request: PredictionRequest):
             'throttle_vs_driver_avg': 0
         }])
         
-        # Add driver dummy variables (all 0 except for the specified driver)
         for col in feature_names:
             if col.startswith('driver_'):
                 features[col] = 1 if col == f'driver_{request.driver}' else 0
         
-        # Ensure all features are present in the correct order
         features = features.reindex(columns=feature_names, fill_value=0)
         
-        # Scale features
         features_scaled = scaler.transform(features)
         
-        # Make prediction
         prediction = model.predict(features_scaled)[0]
         
-        # Calculate confidence interval (using std of tree predictions)
         tree_predictions = np.array([tree.predict(features_scaled) for tree in model.estimators_])
         std_prediction = np.std(tree_predictions)
         
-        # Add some randomness to make predictions more realistic
-        # This simulates real-world variations
         prediction_variation = np.random.normal(0, std_prediction * 0.1)
         final_prediction = prediction + prediction_variation
-        
-        # Ensure prediction is within reasonable bounds
+
         final_prediction = max(60, min(200, final_prediction))
         
         return PredictionResponse(
@@ -452,7 +429,7 @@ async def get_model_info():
         last_trained=model_info.get("last_trained"),
         metrics=model_info.get("metrics", {}),
         feature_importance=model_info.get("feature_importance", {}),
-        total_predictions=0  # This could be tracked if needed
+        total_predictions=0  
     )
 
 
@@ -460,20 +437,17 @@ async def get_model_info():
 async def upload_training_data(file: UploadFile = File(...)):
     """Upload new training data"""
     try:
-        # Save uploaded file
         file_path = f"/tmp/{file.filename}"
         with open(file_path, "wb") as f:
             content = await file.read()
             f.write(content)
         
-        # Validate it's a CSV
         try:
             pd.read_csv(file_path, nrows=5)
         except:
             os.remove(file_path)
             raise HTTPException(status_code=400, detail="Invalid CSV file")
         
-        # Move to data directory
         os.makedirs(os.path.dirname(DATA_PATH), exist_ok=True)
         os.rename(file_path, DATA_PATH)
         

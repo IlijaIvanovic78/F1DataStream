@@ -10,7 +10,6 @@ import grpc
 from google.protobuf.timestamp_pb2 import Timestamp
 from dotenv import load_dotenv
 
-# Add gen directory to datamanager-py path
 sys.path.insert(0, str(pathlib.Path(__file__).parent.joinpath("gen")))
 import telemetry_pb2, telemetry_pb2_grpc
 
@@ -24,11 +23,9 @@ logger = logging.getLogger(__name__)
 
 publisher = MqttPublisher()
 
-# Protocol Buffers -> Python datetime
 def proto_to_dt(ts: Timestamp) -> datetime:
     return ts.ToDatetime().replace(tzinfo=timezone.utc)
 
-# Python datetime -> Protocol Buffers
 def dt_to_proto(dt: datetime) -> Timestamp:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
@@ -36,7 +33,6 @@ def dt_to_proto(dt: datetime) -> Timestamp:
     ts.FromDatetime(dt)
     return ts
 
-# PostgreSQL row to Protocol Buffers Telemetry
 def row_to_proto(row) -> telemetry_pb2.Telemetry:
     t = telemetry_pb2.Telemetry()
     t.id = row["id"]
@@ -142,7 +138,6 @@ class TelemetryServiceImpl(telemetry_pb2_grpc.TelemetryServiceServicer):
             t_out.CopyFrom(t)
             t_out.id = new_id
             
-            # Publish to MQTT after successful database insertion
             publisher.publish({
                 "id": t_out.id,
                 "driver": t_out.driver,

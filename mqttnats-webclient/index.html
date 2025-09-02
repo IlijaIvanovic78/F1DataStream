@@ -20,7 +20,7 @@
     <div class="connections-container">
       <!-- MQTT Connection -->
       <div class="connection-card">
-        <h3>📡 MQTT Events</h3>
+        <h3>MQTT Events</h3>
         <div class="connection-form">
           <div class="form-group">
             <label>Status:</label>
@@ -43,7 +43,7 @@
 
       <!-- NATS Connection -->
       <div class="connection-card">
-        <h3>🔮 ML Predictions</h3>
+        <h3>ML Predictions</h3>
         <div class="connection-form">
           <div class="form-group">
             <label>Status:</label>
@@ -53,11 +53,11 @@
             </span>
           </div>
           <div class="form-group">
-            <label>Server:</label>
-            <input id="nats-url" value="ws://localhost:9222" size="25" />
+            <label>Analytics API:</label>
+            <input id="nats-url" value="http://localhost:8083" size="25" />
           </div>
           <div class="form-group">
-            <label>Topic:</label>
+            <label>NATS Topic:</label>
             <input id="nats-topic" value="telemetry.predictions" size="20" />
           </div>
           <button id="nats-connect" class="btn-connect">Connect</button>
@@ -89,7 +89,6 @@
     </div>
 
     <div class="dual-feed-container">
-      <!-- Events Container (Left) -->
       <div class="feed-section">
         <div class="events-header">
           <span>MQTT Events</span>
@@ -98,7 +97,6 @@
         <div class="events-list" id="events"></div>
       </div>
 
-      <!-- Predictions Container (Right) -->
       <div class="feed-section">
         <div class="events-header">
           <span>ML Predictions</span>
@@ -113,8 +111,8 @@
   <script>
     let mqttClient = null;
     let natsClient = null;
+    let predictionPolling = null;
 
-    // Statistics counters
     let stats = {
       total: 0,
       SPEED_OVER_LIMIT: 0,
@@ -213,7 +211,6 @@
 
       eventsEl.prepend(div);
 
-      // Keep only last 100 per container
       while (eventsEl.children.length > 100) {
         eventsEl.removeChild(eventsEl.lastChild);
       }
@@ -279,14 +276,14 @@
       }
     };
 
-    // ML Predictions polling
-    let predictionPolling = null;
-    let lastPredictionCount = 0;
-    let displayedPredictions = new Set(); // Track displayed predictions by unique ID
+    // ML Predictions via Analytics HTTP API from NATS
+    let displayedPredictions = new Set();
 
     document.getElementById('nats-connect').onclick = async () => {
+      const analyticsUrl = document.getElementById('nats-url').value;
+      const topic = document.getElementById('nats-topic').value;
+
       if (predictionPolling) {
-        // Stop polling
         clearInterval(predictionPolling);
         predictionPolling = null;
         updateStatus('nats-status', 'Disconnected', false);
@@ -294,32 +291,27 @@
         return;
       }
 
-      // Start polling Analytics API for ML predictions
       updateStatus('nats-status', 'Connecting to Analytics API...', false);
 
       try {
-        // Test connection
-        const response = await fetch('http://localhost:8083/health');
-        if (!response.ok) throw new Error('Analytics service not available');
+        const healthResponse = await fetch(`${analyticsUrl}/health`);
+        if (!healthResponse.ok) throw new Error('Analytics service not available');
 
-        updateStatus('nats-status', 'Connected (HTTP Polling)', true);
+        updateStatus('nats-status', `Connected to Analytics (NATS: ${topic})`, true);
         document.getElementById('nats-connect').textContent = 'Disconnect';
 
-        // Start polling every 2 seconds
         predictionPolling = setInterval(async () => {
           try {
-            const predResponse = await fetch('http://localhost:8083/predictions');
+            const predResponse = await fetch(`${analyticsUrl}/predictions`);
             if (predResponse.ok) {
               const data = await predResponse.json();
 
-              // Check for new predictions that haven't been displayed
               data.predictions.forEach(prediction => {
-                // Create unique ID for prediction
-                const predictionId = `${prediction.driver}_${prediction.lap_number}_${prediction.predicted_lap_time}`;
+                const predictionId = `${prediction.driver}_${prediction.lap_number}_${prediction.predicted_lap_time}_${prediction.timestamp}`;
 
                 if (!displayedPredictions.has(predictionId)) {
                   displayedPredictions.add(predictionId);
-                  addEventCard('ML', prediction, 'prediction');
+                  addEventCard('NATS→HTTP', prediction, 'prediction');
                   stats.predictions++;
                   stats.total++;
                   updateStats();
@@ -327,7 +319,7 @@
               });
             }
           } catch (e) {
-            console.warn('Prediction polling error:', e);
+            console.warn('Analytics polling error:', e);
           }
         }, 2000);
 
@@ -337,30 +329,33 @@
       }
     };
 
-    // Clear Events button
     document.getElementById('clear-events').onclick = () => {
       document.getElementById('events').innerHTML = '';
       stats.SPEED_OVER_LIMIT = 0;
       stats.RPM_OVER_LIMIT = 0;
       stats.HARD_BRAKE_AT_HIGH_SPEED = 0;
-      // Recalculate total
       stats.total = stats.predictions;
       updateStats();
     };
 
-    // Clear Predictions button
     document.getElementById('clear-predictions').onclick = () => {
       document.getElementById('predictions').innerHTML = '';
-      displayedPredictions.clear(); // Reset displayed predictions tracking
+      displayedPredictions.clear();
       stats.predictions = 0;
-      // Recalculate total
       stats.total = stats.SPEED_OVER_LIMIT + stats.RPM_OVER_LIMIT + stats.HARD_BRAKE_AT_HIGH_SPEED;
       updateStats();
     };
 
+    async function cleanup() {
+      if (predictionPolling) {
+        clearInterval(predictionPolling);
+        predictionPolling = null;
+      }
+    }
+
+    window.addEventListener('beforeunload', cleanup);
 
 
-    // Initialize
     updateStats();
   </script>
 </body>

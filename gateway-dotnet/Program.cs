@@ -20,7 +20,6 @@ builder.Services.AddControllers().ConfigureApiBehaviorOptions(o =>
     };
 });
 
-// Swagger configuration
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -39,7 +38,6 @@ builder.Services.AddSwaggerGen(c =>
     c.DocInclusionPredicate((name, api) => true);
 });
 
-// gRPC client configuration
 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 builder.Services.AddGrpcClient<TelemetryService.TelemetryServiceClient>(o =>
     o.Address = new Uri(builder.Configuration["Grpc:TelemetryServiceUrl"]!))
@@ -49,7 +47,7 @@ builder.Services.AddGrpcClient<TelemetryService.TelemetryServiceClient>(o =>
     AutomaticDecompression = DecompressionMethods.All
 });
 
-// Add Health Checks
+
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
