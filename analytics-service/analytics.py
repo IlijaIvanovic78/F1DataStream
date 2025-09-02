@@ -18,11 +18,9 @@ import threading
 
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.CRITICAL)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.CRITICAL)
 
 MQTT_HOST = os.getenv('MQTT_HOST', 'mqtt')
 MQTT_PORT = int(os.getenv('MQTT_PORT', 1883))
@@ -34,7 +32,7 @@ NATS_TOPIC = os.getenv('NATS_TOPIC', 'telemetry.predictions')
 
 MLAAS_URL = os.getenv('MLAAS_URL', 'http://mlaas:8000')
 
-LAP_COMPLETION_THRESHOLD = int(os.getenv('LAP_COMPLETION_THRESHOLD', '10'))  # seconds without data
+LAP_COMPLETION_THRESHOLD = int(os.getenv('LAP_COMPLETION_THRESHOLD', '10')) 
 
 app = FastAPI(title="Analytics Service API", version="1.0.0")
 
@@ -140,8 +138,6 @@ class AnalyticsService:
         self.mlaas_available = False
         
     async def start(self):
-        logger.info("Starting Analytics Service")
-        
         await self.check_mlaas_health()
         
         self.setup_mqtt()
@@ -157,7 +153,6 @@ class AnalyticsService:
             while self.is_running:
                 await asyncio.sleep(1)
         except KeyboardInterrupt:
-            logger.info("Shutting down Analytics Service")
             await self.stop()
             
     async def stop(self):
@@ -179,29 +174,23 @@ class AnalyticsService:
         try:
             self.mqtt_client.connect(MQTT_HOST, MQTT_PORT, 60)
             self.mqtt_client.loop_start()
-            logger.info(f"Connected to MQTT broker at {MQTT_HOST}:{MQTT_PORT}")
         except Exception as e:
-            logger.error(f"Failed to connect to MQTT: {e}")
             raise
             
     async def setup_nats(self):
         try:
             self.nats_client = await nats.connect(NATS_URL)
-            logger.info(f"Connected to NATS at {NATS_URL}")
         except Exception as e:
-            logger.error(f"Failed to connect to NATS: {e}")
             raise
             
     def on_mqtt_connect(self, client, userdata, flags, rc):
         if rc == 0:
-            logger.info("Successfully connected to MQTT broker")
             client.subscribe(MQTT_TOPIC)
-            logger.info(f"Subscribed to topic: {MQTT_TOPIC}")
         else:
-            logger.error(f"Failed to connect to MQTT broker, return code: {rc}")
+            pass
             
     def on_mqtt_disconnect(self, client, userdata, rc):
-        logger.warning(f"Disconnected from MQTT broker, return code: {rc}")
+        pass
         
     def on_mqtt_message(self, client, userdata, msg):
         try:
@@ -214,13 +203,9 @@ class AnalyticsService:
                 return
             
             self.aggregator.add_telemetry(data)
-
-            if data.get('lap_number', 0) % 5 == 0:  
-                logger.debug(f"Received telemetry: driver={data['driver']}, lap={data['lap_number']}")
             
         except Exception as e:
-            logger.error(f"Error processing MQTT message: {e}")
-            logger.error(f"Message payload: {msg.payload.decode()}")
+            pass
             
     async def process_completed_laps(self):
         while self.is_running:
@@ -234,13 +219,12 @@ class AnalyticsService:
                         await self.publish_prediction(lap_data, prediction)
                         
             except Exception as e:
-                logger.error(f"Error processing completed laps: {e}")
+                pass
                 
             await asyncio.sleep(5)  
             
     async def get_lap_prediction(self, lap_data: Dict) -> Optional[Dict]:
         if not self.mlaas_available:
-            logger.warning("MLaaS not available, skipping prediction")
             return None
             
         try:
@@ -266,11 +250,9 @@ class AnalyticsService:
             if response.status_code == 200:
                 return response.json()
             else:
-                logger.error(f"MLaaS prediction failed: {response.status_code} - {response.text}")
                 return None
                 
         except Exception as e:
-            logger.error(f"Error calling MLaaS: {e}")
             return None
             
     async def publish_prediction(self, lap_data: Dict, prediction: Dict):
@@ -282,7 +264,7 @@ class AnalyticsService:
                 'confidence_interval': prediction['confidence_interval'],
                 'actual_telemetry': {
                     'avg_speed': lap_data['speed'],
-                    'avg_throttle': lap_data['throttle'] / 100.0,  # Convert to 0-1 range for display
+                    'avg_throttle': lap_data['throttle'] / 100.0,  
                     'avg_rpm': lap_data['rpm'],
                     'used_drs': lap_data['drs'],
                     'used_brake': lap_data['brake']
@@ -305,26 +287,15 @@ class AnalyticsService:
             if len(recent_predictions) > max_recent:
                 recent_predictions = recent_predictions[-max_recent:]
             
-            logger.info(
-                f"Published prediction for {lap_data['driver']} lap {lap_data['lap_number']}: "
-                f"{prediction['predicted_lap_time']:.2f}s"
-            )
-            
         except Exception as e:
-            logger.error(f"Error publishing to NATS: {e}")
+            pass
             
     async def check_mlaas_health(self):
         try:
             response = requests.get(f"{MLAAS_URL}/health", timeout=5)
             self.mlaas_available = response.status_code == 200
-            
-            if self.mlaas_available:
-                logger.info("MLaaS service is available")
-            else:
-                logger.warning("MLaaS service is not responding")
                 
         except Exception as e:
-            logger.warning(f"Cannot reach MLaaS service: {e}")
             self.mlaas_available = False
             
     async def health_check_loop(self):

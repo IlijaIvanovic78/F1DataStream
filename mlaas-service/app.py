@@ -21,12 +21,9 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.CRITICAL)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.CRITICAL)
 
 
 app = FastAPI(
@@ -88,12 +85,9 @@ class ModelInfoResponse(BaseModel):
 
 def load_and_prepare_data(file_path: str) -> pd.DataFrame:
     """Load and prepare F1 telemetry data for training with advanced features"""
-    logger.info(f"Loading data from {file_path}")
     
     try:
-
         df = pd.read_csv(file_path)
-        logger.info(f"Loaded {len(df)} rows of data")
         
 
         df['timestamp'] = pd.to_datetime(df['timestamp'], format='ISO8601', errors='coerce')
@@ -169,19 +163,15 @@ def load_and_prepare_data(file_path: str) -> pd.DataFrame:
 
         final_df = final_df[(final_df['lap_time'] > 60) & (final_df['lap_time'] < 200)]
         
-        logger.info(f"Prepared {len(final_df)} lap records for training with {len(final_df.columns)} features")
         return final_df
         
     except Exception as e:
-        logger.error(f"Error loading data: {str(e)}")
         raise
 
 
 def train_model(df: pd.DataFrame) -> Dict[str, Any]:
     """Train the lap time prediction model"""
     global model, scaler, model_info
-    
-    logger.info("Starting model training")
     
 
     feature_columns = [col for col in df.columns if col not in ['driver', 'lap_number', 'lap_time']]
@@ -245,8 +235,6 @@ def train_model(df: pd.DataFrame) -> Dict[str, Any]:
     joblib.dump(scaler, SCALER_PATH)
     joblib.dump(X.columns.tolist(), os.path.join(os.path.dirname(MODEL_PATH), "feature_names.pkl"))
     
-    logger.info(f"Model trained successfully. MAE: {mae:.2f}, RMSE: {rmse:.2f}, R²: {r2:.3f}")
-    
     return model_info
 
 
@@ -260,9 +248,8 @@ async def startup_event():
             model = joblib.load(MODEL_PATH)
             scaler = joblib.load(SCALER_PATH)
             model_info["status"] = "loaded"
-            logger.info("Model loaded successfully on startup")
         except Exception as e:
-            logger.error(f"Failed to load model: {str(e)}")
+            pass
 
 
 @app.get("/", response_model=Dict[str, str])
@@ -300,7 +287,6 @@ async def train_model_endpoint(background_tasks: BackgroundTasks):
         )
         
     except Exception as e:
-        logger.error(f"Training failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -417,7 +403,6 @@ async def predict_lap_time(request: PredictionRequest):
         )
         
     except Exception as e:
-        logger.error(f"Prediction failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

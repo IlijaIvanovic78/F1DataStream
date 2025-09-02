@@ -10,11 +10,9 @@ from pathlib import Path
 import requests
 from dateutil import parser as date_parser
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.CRITICAL)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.CRITICAL)
 
 
 class TelemetryStreamer:
@@ -52,7 +50,6 @@ class TelemetryStreamer:
 
             return dt.isoformat().replace('+00:00', 'Z')
         except Exception as e:
-            logger.error(f"Failed to parse timestamp '{timestamp_str}': {e}")
             raise
     
     def csv_row_to_dto(self, row: Dict[str, str]) -> Dict[str, Any]:
@@ -71,8 +68,6 @@ class TelemetryStreamer:
                 "drs": self.parse_boolean(row["DRS"])
             }
         except (ValueError, KeyError) as e:
-            logger.error(f"Failed to convert row to DTO: {e}")
-            logger.error(f"Row data: {row}")
             raise
     
     def send_telemetry_batch(self, telemetry_batch: List[Dict[str, Any]]) -> bool:
@@ -97,30 +92,17 @@ class TelemetryStreamer:
                     self.total_sent += 1
                     return True
                 elif response.status_code >= 500:
-
                     wait_time = 2 ** attempt  
-                    logger.warning(
-                        f"Server error {response.status_code} on attempt {attempt + 1}/{max_retries}. "
-                        f"Retrying in {wait_time}s..."
-                    )
                     time.sleep(wait_time)
                     continue
                 else:
-                    logger.error(
-                        f"Client error {response.status_code}: {response.text[:200]}"
-                    )
                     self.total_errors += 1
                     return False
                     
             except requests.exceptions.RequestException as e:
                 wait_time = 2 ** attempt
-                logger.warning(
-                    f"Network error on attempt {attempt + 1}/{max_retries}: {e}. "
-                    f"Retrying in {wait_time}s..."
-                )
                 time.sleep(wait_time)
         
-        logger.error(f"Failed to send telemetry after {max_retries} attempts")
         self.total_errors += 1
         return False
     
@@ -128,10 +110,6 @@ class TelemetryStreamer:
         csv_file = Path(csv_path)
         if not csv_file.exists():
             raise FileNotFoundError(f"CSV file not found: {csv_path}")
-        
-        logger.info(f"Starting to stream data from {csv_path}")
-        logger.info(f"Target: {self.api_endpoint}")
-        logger.info(f"Rate: {self.rate} records/sec, Burst: {self.burst}")
         
         self.start_time = time.time()
         batch = []
@@ -162,19 +140,10 @@ class TelemetryStreamer:
                             self.send_telemetry_batch(batch)
                             batch = []
                             
-                            if self.total_sent > 0 and self.total_sent % 100 == 0:
-                                elapsed = time.time() - self.start_time
-                                rate = self.total_sent / elapsed
-                                logger.info(
-                                    f"Progress: {self.total_sent} sent, {self.total_errors} errors, "
-                                    f"{rate:.1f} records/sec"
-                                )
-                            
                             if sleep_time > 0:
                                 time.sleep(sleep_time)
                     
                     except Exception as e:
-                        logger.error(f"Failed to process row {rows_processed}: {e}")
                         self.total_errors += 1
                         continue
                 
@@ -182,18 +151,9 @@ class TelemetryStreamer:
                     self.send_telemetry_batch(batch)
         
         except Exception as e:
-            logger.error(f"Error reading CSV file: {e}")
             raise
         
         elapsed = time.time() - self.start_time
-        logger.info("=" * 50)
-        logger.info("STREAMING COMPLETED")
-        logger.info(f"Total rows processed: {rows_processed}")
-        logger.info(f"Successfully sent: {self.total_sent}")
-        logger.info(f"Errors: {self.total_errors}")
-        logger.info(f"Success rate: {(self.total_sent/max(rows_processed,1))*100:.1f}%")
-        logger.info(f"Average rate: {self.total_sent/elapsed:.1f} records/sec")
-        logger.info(f"Total time: {elapsed:.1f} seconds")
 
 
 def main():

@@ -15,11 +15,9 @@ import telemetry_pb2, telemetry_pb2_grpc
 
 from mqtt_client import MqttPublisher
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.CRITICAL)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.CRITICAL)
 
 publisher = MqttPublisher()
 
@@ -63,19 +61,15 @@ class DatabaseManager:
         for attempt in range(1, retries + 1):
             try:
                 self.conn = psycopg.connect(dsn, row_factory=dict_row, autocommit=True)
-                logger.info("Connected to PostgreSQL (%s:%s)", self.host, self.port)
                 self.init_db()
                 return True
             except Exception as e:
-                logger.warning("PostgreSQL not ready (attempt %d/%d): %s", attempt, retries, e)
                 time.sleep(delay)
-        logger.error("Failed to connect to PostgreSQL after %d attempts.", retries)
         return False
 
     def disconnect(self):
         if self.conn and not self.conn.closed:
             self.conn.close()
-            logger.info("PostgreSQL connection closed.")
 
     def get_connection(self) -> psycopg.Connection:
         if not self.conn or self.conn.closed:
@@ -105,7 +99,6 @@ class DatabaseManager:
         conn = self.get_connection()
         with conn.cursor() as cur:
             cur.execute(sql)
-        logger.info("DB schema ensured.")
 
 class TelemetryServiceImpl(telemetry_pb2_grpc.TelemetryServiceServicer):
     def __init__(self, db: DatabaseManager):
@@ -155,7 +148,6 @@ class TelemetryServiceImpl(telemetry_pb2_grpc.TelemetryServiceServicer):
             
             return telemetry_pb2.CreateTelemetryResponse(telemetry=t_out, success=True, message="Created")
         except Exception as e:
-            logger.exception("CreateTelemetry failed")
             return telemetry_pb2.CreateTelemetryResponse(success=False, message=str(e))
 
     def GetTelemetry(self, request, context):
@@ -286,11 +278,9 @@ db_manager = DatabaseManager()
 def init_database() -> bool:
     if db_manager.connect():
         return True
-    logger.error("Failed to initialize database. Exiting.")
     return False
 
 def serve():
-    logger.info("Starting Telemetry gRPC Server...")
     if not init_database():
         return
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
@@ -300,11 +290,9 @@ def serve():
     listen_addr = f"{os.getenv('GRPC_HOST','0.0.0.0')}:{os.getenv('GRPC_PORT','50051')}"
     server.add_insecure_port(listen_addr)
     server.start()
-    logger.info("gRPC listening on %s", listen_addr)
     try:
         server.wait_for_termination()
     except KeyboardInterrupt:
-        logger.info("Shutting down...")
         server.stop(5)
         db_manager.disconnect()
 

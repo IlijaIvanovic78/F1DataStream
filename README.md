@@ -8,29 +8,6 @@ Ovaj projekat predstavlja kompletnu IoT platformu koja obrađuje telemetrijske p
 - **Projekat 2**: MQTT messaging i event detection sistem
 - **Projekat 3**: Machine Learning analiza i NATS messaging
 
-## Arhitektura Sistema
-
-Sistem koristi mikroservisnu arhitekturu sa sledećim komponentama:
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Gateway       │    │  DataManager    │    │   Analytics     │
-│   (ASP.NET)     │◄──►│   (Python)      │◄──►│   (Python)      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   PostgreSQL    │    │      MQTT       │    │      NATS       │
-│   Database      │    │    Broker       │    │    Broker       │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         ▲                       ▲                       ▲
-         │                       │                       │
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│ SensorGenerator │    │ EventManager    │    │     MLaaS       │
-│   (Python)      │    │   (Python)      │    │   (Python)      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
-
 ---
 
 ## Projekat 1 - Osnovna IoT Platforma
@@ -51,7 +28,7 @@ Implementacija osnovne IoT platforme sa CRUD operacijama nad telemetrijskim poda
 - gRPC klijent komunikacija sa DataManager-om
 - Swagger UI dokumentacija
 
-#### 🔧 DataManager Mikroservis (Python)
+#### DataManager Mikroservis (Python)
 
 **Funkcionalnosti**:
 
@@ -116,7 +93,7 @@ Proširenje platforme sa MQTT messaging sistemom i real-time event detection fun
 
 ### Opis
 
-Implementacija napredne analitike sa machine learning modelima i NATS messaging sistemom.
+Implementacija analitike sa machine learning modelima i NATS messaging sistemom.
 
 ### Novi Mikroservisi
 

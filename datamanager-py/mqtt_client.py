@@ -6,6 +6,7 @@ import paho.mqtt.client as mqtt
 import logging
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.CRITICAL)
 
 
 class MqttPublisher:
@@ -28,20 +29,16 @@ class MqttPublisher:
         try:
             self._client.connect_async(self.host, self.port, keepalive=30)
             self._client.loop_start()
-            logger.info(f"MQTT client connecting to {self.host}:{self.port}")
         except Exception as e:
-            logger.error(f"Failed to start MQTT client: {e}")
+            pass
 
     def _on_connect(self, client, userdata, flags, rc):
         self._connected = (rc == 0)
-        if self._connected:
-            logger.info(f"MQTT connected to {self.host}:{self.port}")
-        else:
-            logger.warning(f"MQTT connection failed with code {rc}")
+        if not self._connected:
+            pass
 
     def _on_disconnect(self, client, userdata, rc):
         self._connected = False
-        logger.warning(f"MQTT disconnected with code {rc}")
 
     def publish(self, payload: Dict[str, Any]):
         try:
@@ -52,20 +49,14 @@ class MqttPublisher:
                     try:
                         self._client.reconnect()
                     except Exception as e:
-                        logger.warning(f"MQTT reconnect failed: {e}")
+                        pass
                 
                 result = self._client.publish(self.topic, data, qos=self.qos, retain=False)
-                
-                if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                    logger.debug(f"Published telemetry to {self.topic}: driver={payload.get('driver')}")
-                else:
-                    logger.warning(f"MQTT publish failed with code {result.rc}")
                     
         except Exception as e:
-            logger.error(f"Failed to publish MQTT message: {e}")
+            pass
 
     def disconnect(self):
         if self._client:
             self._client.loop_stop()
             self._client.disconnect()
-            logger.info("MQTT client disconnected")

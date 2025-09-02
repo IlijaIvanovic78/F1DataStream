@@ -6,6 +6,10 @@ using Telemetry;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Minimize logging output
+builder.Logging.ClearProviders();
+builder.Logging.SetMinimumLevel(LogLevel.Critical);
+
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ListenAnyIP(8080);

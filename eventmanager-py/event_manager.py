@@ -6,12 +6,9 @@ from typing import Dict, Any, List
 import paho.mqtt.client as mqtt
 from dateutil import parser as dateparser
 
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.CRITICAL)
 logger = logging.getLogger('EventManager')
+logger.setLevel(logging.CRITICAL)
 
 MQTT_HOST = os.getenv("MQTT_HOST", "mqtt")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
@@ -64,7 +61,6 @@ def detect_events(msg: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "value": spd,
                 "limit": SPEED_MAX
             })
-            logger.warning(f"SPEED_OVER_LIMIT: {msg.get('driver')} - {spd} km/h > {SPEED_MAX}")
         
         if rpm > RPM_MAX:
             events.append({
@@ -73,7 +69,6 @@ def detect_events(msg: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "value": rpm,
                 "limit": RPM_MAX
             })
-            logger.warning(f"RPM_OVER_LIMIT: {msg.get('driver')} - {rpm} RPM > {RPM_MAX}")
         
         if brake and spd > BRAKE_ALERT_SPEED:
             events.append({
@@ -82,32 +77,23 @@ def detect_events(msg: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "value": spd,
                 "limit": BRAKE_ALERT_SPEED
             })
-            logger.warning(f"HARD_BRAKE_AT_HIGH_SPEED: {msg.get('driver')} - braking at {spd} km/h")
         
         events_detected += len(events)
         return events
         
     except Exception as e:
-        logger.error(f"Error detecting events: {e}")
         return []
 
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
-        logger.info(f"Connected to MQTT broker {MQTT_HOST}:{MQTT_PORT}")
         client.subscribe(TOPIC_IN, qos=QOS)
-        logger.info(f"Subscribed to topic: {TOPIC_IN}")
-        logger.info(f"Will publish events to: {TOPIC_OUT}")
-        logger.info(f"Event detection rules:")
-        logger.info(f"  - Speed limit: {SPEED_MAX} km/h")
-        logger.info(f"  - RPM limit: {RPM_MAX}")
-        logger.info(f"  - Brake alert speed: {BRAKE_ALERT_SPEED} km/h")
     else:
-        logger.error(f"Failed to connect to MQTT broker: {rc}")
+        pass
 
 
 def on_disconnect(client, userdata, rc):
-    logger.warning(f"Disconnected from MQTT broker: {rc}")
+    pass
 
 
 def on_message(client, userdata, message):
@@ -118,52 +104,36 @@ def on_message(client, userdata, message):
         payload = json.loads(message.payload.decode("utf-8"))
         messages_processed += 1
         
-
-        if messages_processed % 100 == 0:
-            logger.info(f"Processed {messages_processed} messages, detected {events_detected} events")
-        
-
         detected_events = detect_events(payload)
         
         for event in detected_events:
             try:
                 event_json = json.dumps(event, default=str)
                 result = client.publish(TOPIC_OUT, event_json, qos=QOS, retain=False)
-                
-                if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                    logger.debug(f"Published event: {event['type']} for driver {event['driver']}")
-                else:
-                    logger.error(f"Failed to publish event: {result.rc}")
                     
             except Exception as e:
-                logger.error(f"Error publishing event: {e}")
+                pass
         
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in telemetry message: {e}")
+        pass
     except Exception as e:
-        logger.error(f"Error processing message: {e}")
+        pass
 
 
 def main():
-    logger.info("Starting EventManager microservice...")
-    
-
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
     client.on_message = on_message
     
 
     try:
-        logger.info(f"Connecting to MQTT broker at {MQTT_HOST}:{MQTT_PORT}")
         client.connect_async(MQTT_HOST, MQTT_PORT, keepalive=30)
         
         client.loop_forever()
         
     except KeyboardInterrupt:
-        logger.info("EventManager stopped by user")
         client.disconnect()
     except Exception as e:
-        logger.error(f"EventManager failed: {e}")
         client.disconnect()
 
 
