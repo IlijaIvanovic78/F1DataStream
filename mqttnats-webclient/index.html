@@ -297,7 +297,7 @@
         const healthResponse = await fetch(`${analyticsUrl}/health`);
         if (!healthResponse.ok) throw new Error('Analytics service not available');
 
-        updateStatus('nats-status', `Connected to Analytics (NATS: ${topic})`, true);
+        updateStatus('nats-status', `Connected`, true);
         document.getElementById('nats-connect').textContent = 'Disconnect';
 
         predictionPolling = setInterval(async () => {
