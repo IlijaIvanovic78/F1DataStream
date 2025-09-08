@@ -85,7 +85,7 @@ Proširenje platforme sa MQTT messaging sistemom i real-time event detection fun
 - Real-time prikaz događaja
 - Statistike i filtriranje
 - Responsive UI dizajn
-- *Napomena: Ovaj osnovni web client je naknadno unapređen u Projektu 3*
+- _Napomena: Ovaj osnovni web client je naknadno unapređen u Projektu 3_
 
 ---
 
@@ -183,14 +183,8 @@ IOT/
 ### Docker Compose Metod
 
 ```bash
-
-# Pokretanje celokupnog sistema
 docker compose up --build
-
-# Pokretanje u background-u
 docker compose up --build -d
-
-# Zaustavljanje sistema
 docker compose down
 ```
 
@@ -208,132 +202,194 @@ docker compose down
 
 ### Pojedinačno Pokretanje sa Docker Run
 
-#### 1. Kreiranje Bridge Network-a
+Za slučajeve kada je potrebno pokrenuti servise pojedinačno umesto celokupnog sistema, možete koristiti sledeće Docker komande:
+
+#### 1. Kreiranje Docker Network-a
 
 ```bash
-docker network create iot-network
+docker network create iotnet
 ```
 
-#### 2. PostgreSQL Baza
+#### 2. PostgreSQL Database
 
 ```bash
-docker run -d \
-  --name postgres-iot \
-  --network iot-network \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=telemetry \
-  -p 5432:5432 \
+docker run -d --name postgres-iot `
+  --network iotnet `
+  -e POSTGRES_USER=postgres `
+  -e POSTGRES_PASSWORD=postgres `
+  -e POSTGRES_DB=telemetry `
+  -p 5432:5432 `
+  -v pgdata:/var/lib/postgresql/data `
   postgres:15
 ```
 
-#### 3. MQTT Broker
+#### 3. MQTT Broker (Mosquitto)
 
 ```bash
-docker run -d \
-  --name mosquitto-iot \
-  --network iot-network \
-  -p 1883:1883 \
-  -p 9001:9001 \
-  -v $(pwd)/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro \
+docker run -d --name mqtt-iot `
+  --network iotnet `
+  -p 1883:1883 `
+  -p 9001:9001 `
+  -v ${PWD}/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro `
   eclipse-mosquitto:2
 ```
 
-#### 4. NATS Broker
+#### 4. NATS Server
 
 ```bash
-docker run -d \
-  --name nats-iot \
-  --network iot-network \
-  -p 4222:4222 \
-  -p 8222:8222 \
-  nats:2.10-alpine \
+docker run -d --name nats-iot `
+  --network iotnet `
+  -p 4222:4222 `
+  -p 8222:8222 `
+  -p 6222:6222 `
+  nats:2.10-alpine `
   -js -m 8222 -DV --port 4222
 ```
 
 #### 5. DataManager Service
 
 ```bash
-docker build -t datamanager ./datamanager-py
-docker run -d \
-  --name datamanager-iot \
-  --network iot-network \
-  -p 50051:50051 \
-  -e POSTGRES_HOST=postgres-iot \
-  -e MQTT_HOST=mosquitto-iot \
-  datamanager
+docker build -t datamanager:local ./datamanager-py
+
+docker run -d --name datamanager-iot `
+  --network iotnet `
+  -e POSTGRES_HOST=postgres-iot `
+  -e POSTGRES_DB=telemetry `
+  -e POSTGRES_USER=postgres `
+  -e POSTGRES_PASSWORD=postgres `
+  -e POSTGRES_PORT=5432 `
+  -e MQTT_HOST=mqtt-iot `
+  -e MQTT_PORT=1883 `
+  -e MQTT_TOPIC_RAW=telemetry/raw `
+  -e MQTT_QOS=1 `
+  -e MQTT_CLIENT_ID=datamanager-pub `
+  -e GRPC_HOST=0.0.0.0 `
+  -e GRPC_PORT=50051 `
+  -e DEBUG=true `
+  -p 50051:50051 `
+  datamanager:local
 ```
 
-#### 6. Gateway Service
+#### 6. Gateway Service (.NET)
 
 ```bash
-docker build -t gateway ./gateway-dotnet
-docker run -d \
-  --name gateway-iot \
-  --network iot-network \
-  -p 5000:8080 \
-  -e Grpc__TelemetryServiceUrl=http://datamanager-iot:50051 \
-  gateway
+docker build -t gateway:local -f ./gateway-dotnet/Dockerfile .
+
+docker run -d --name gateway-iot `
+  --network iotnet `
+  -e ASPNETCORE_URLS=http://0.0.0.0:8080 `
+  -e ASPNETCORE_ENVIRONMENT=Development `
+  -e Grpc__TelemetryServiceUrl=http://datamanager-iot:50051 `
+  -p 5000:8080 `
+  gateway:local
 ```
 
 #### 7. MLaaS Service
 
 ```bash
-docker build -t mlaas ./mlaas-service
-docker run -d \
-  --name mlaas-iot \
-  --network iot-network \
-  -p 8000:8000 \
-  mlaas
+docker build -t mlaas:local ./mlaas-service
+
+docker run -d --name mlaas-iot `
+  --network iotnet `
+  -e DATA_PATH=/data/f1_telemetry_wide.csv `
+  -e MODEL_PATH=/app/models/lap_time_predictor.pkl `
+  -e SCALER_PATH=/app/models/scaler.pkl `
+  -p 8000:8000 `
+  -v ${PWD}/data:/data:ro `
+  -v mlaas-models:/app/models `
+  mlaas:local
 ```
 
 #### 8. Analytics Service
 
 ```bash
-docker build -t analytics ./analytics-service
-docker run -d \
-  --name analytics-iot \
-  --network iot-network \
-  -p 8083:8080 \
-  -e MQTT_HOST=mosquitto-iot \
-  -e NATS_URL=nats://nats-iot:4222 \
-  -e MLAAS_URL=http://mlaas-iot:8000 \
-  analytics
+docker build -t analytics:local ./analytics-service
+
+docker run -d --name analytics-iot `
+  --network iotnet `
+  -e MQTT_HOST=mqtt-iot `
+  -e MQTT_PORT=1883 `
+  -e MQTT_TOPIC=telemetry/raw `
+  -e MQTT_CLIENT_ID=analytics-service `
+  -e NATS_URL=nats://nats-iot:4222 `
+  -e NATS_TOPIC=telemetry.predictions `
+  -e MLAAS_URL=http://mlaas-iot:8000 `
+  -e LAP_COMPLETION_THRESHOLD=10 `
+  -p 8083:8080 `
+  analytics:local
 ```
 
-#### 9. EventManager Service
+#### 9. Event Manager Service
 
 ```bash
-docker build -t eventmanager ./eventmanager-py
-docker run -d \
-  --name eventmanager-iot \
-  --network iot-network \
-  -e MQTT_HOST=mosquitto-iot \
-  eventmanager
+docker build -t eventmanager:local ./eventmanager-py
+
+docker run -d --name eventmanager-iot `
+  --network iotnet `
+  -e MQTT_HOST=mqtt-iot `
+  -e MQTT_PORT=1883 `
+  -e MQTT_TOPIC_RAW=telemetry/raw `
+  -e MQTT_TOPIC_EVENTS=telemetry/events `
+  -e MQTT_QOS=1 `
+  -e RULE_SPEED_MAX=325 `
+  -e RULE_RPM_MAX=12000 `
+  -e RULE_BRAKE_ALERT_SPEED=280 `
+  eventmanager:local
 ```
 
-#### 10. MqttNats Web Client
+#### 10. MQTT/NATS Web Client
 
 ```bash
-# MqttNats Web Client
-docker build -t mqttnats-webclient ./mqttnats-webclient
-docker run -d \
-  --name mqttnats-web-iot \
-  --network iot-network \
-  -p 8082:80 \
-  mqttnats-webclient
+docker build -t mqttnats-web:local ./mqttnats-webclient
+
+docker run -d --name mqttnats-web `
+  --network iotnet `
+  -p 8082:80 `
+  mqttnats-web:local
 ```
 
-#### 11. Sensor Generator
+#### 11. Sensor Generator (Optional)
 
 ```bash
-docker build -t sensor-generator ./sensor-generator
-docker run -d \
-  --name sensorgen-iot \
-  --network iot-network \
-  -v $(pwd)/data:/data \
-  sensor-generator \
-  python send_stream.py --path /data/f1_telemetry_wide.csv --base-url http://gateway-iot:8080 --rate 50
+docker build -t sensor-generator:local ./sensor-generator
+
+docker run -d --name sensor-generator `
+  --network iotnet `
+  -v ${PWD}/data:/data `
+  -e PYTHONUNBUFFERED=1 `
+  sensor-generator:local python send_stream.py --path /data/f1_telemetry_wide.csv --base-url http://gateway-iot:8080 --rate 50 --burst 10
+```
+
+#### Redosled Pokretanja
+
+**Važno**: Servisi moraju biti pokrenuti u određenom redosledu zbog međuzavisnosti:
+
+1. `docker network create iotnet`
+2. PostgreSQL (`postgres-iot`)
+3. MQTT Broker (`mqtt-iot`)
+4. NATS Server (`nats-iot`)
+5. DataManager (`datamanager-iot`)
+6. Gateway (`gateway-iot`)
+7. MLaaS (`mlaas-iot`)
+8. Analytics (`analytics-iot`)
+9. Event Manager (`eventmanager-iot`)
+10. Web Client (`mqttnats-web`)
+11. Sensor Generator (`sensor-generator`) - opciono
+
+#### Čišćenje (Cleanup)
+
+```bash
+# Zaustavljanje svih kontejnera
+docker stop postgres-iot mqtt-iot nats-iot datamanager-iot gateway-iot mlaas-iot analytics-iot eventmanager-iot mqttnats-web sensor-generator
+
+# Uklanjanje kontejnera
+docker rm postgres-iot mqtt-iot nats-iot datamanager-iot gateway-iot mlaas-iot analytics-iot eventmanager-iot mqttnats-web sensor-generator
+
+# Uklanjanje network-a
+docker network rm iotnet
+
+# Uklanjanje volume-a
+docker volume rm pgdata mlaas-models
 ```
 
 ---
