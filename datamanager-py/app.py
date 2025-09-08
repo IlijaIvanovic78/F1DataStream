@@ -1,5 +1,4 @@
-import os, sys, time, logging, pathlib
-from pathlib import Path
+import os, time, logging
 from concurrent import futures
 from datetime import datetime, timezone
 from typing import Optional, List
@@ -8,12 +7,9 @@ import psycopg
 from psycopg.rows import dict_row
 import grpc
 from google.protobuf.timestamp_pb2 import Timestamp
-from dotenv import load_dotenv
-
-sys.path.insert(0, str(pathlib.Path(__file__).parent.joinpath("gen")))
-import telemetry_pb2, telemetry_pb2_grpc
 
 from mqtt_client import MqttPublisher
+from gen import telemetry_pb2, telemetry_pb2_grpc
 
 logging.basicConfig(level=logging.CRITICAL)
 logger = logging.getLogger(__name__)
@@ -259,6 +255,7 @@ class TelemetryServiceImpl(telemetry_pb2_grpc.TelemetryServiceServicer):
         if request.end_time.seconds or request.end_time.nanos:
             where.append("timestamp <= %s")
             params.append(proto_to_dt(request.end_time))
+            
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
         sql = f"SELECT {func}({field}) AS value, COUNT(*) AS cnt FROM telemetry {where_sql}"
         with self.db.get_connection().cursor() as cur:

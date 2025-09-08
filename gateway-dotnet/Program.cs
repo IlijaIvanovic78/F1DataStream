@@ -6,7 +6,6 @@ using Telemetry;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Minimize logging output
 builder.Logging.ClearProviders();
 builder.Logging.SetMinimumLevel(LogLevel.Critical);
 

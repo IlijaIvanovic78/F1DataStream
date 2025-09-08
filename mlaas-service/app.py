@@ -84,8 +84,6 @@ class ModelInfoResponse(BaseModel):
 
 
 def load_and_prepare_data(file_path: str) -> pd.DataFrame:
-    """Load and prepare F1 telemetry data for training with advanced features"""
-    
     try:
         df = pd.read_csv(file_path)
         

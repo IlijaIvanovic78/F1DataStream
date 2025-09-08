@@ -191,7 +191,6 @@ docker compose down
 **Dostupni servisi**:
 
 - Gateway API: http://localhost:5000
-- Swagger UI: http://localhost:5000/swagger
 - DataManager gRPC: localhost:50051
 - MQTT Broker: localhost:1883
 - MQTT WebSocket: localhost:9001
