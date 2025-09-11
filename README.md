@@ -435,3 +435,6 @@ docker volume rm pgdata mlaas-models
 - **AsyncAPI Specifications**: `/Documentation/asyncapi/`
 - **Protocol Buffers**: `/telemetry.proto`
 - **Swagger UI**: `http://localhost:5000/swagger`
+
+
+## PODACI PREUZETI SA: 🔗 https://theoehrly.github.io/Fast-F1/

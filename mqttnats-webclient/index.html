@@ -280,7 +280,6 @@
       const natsUrl = document.getElementById('nats-url').value;
       const topic = document.getElementById('nats-topic').value;
 
-      // Disconnect
       if (natsClient) {
         try { await natsClient.drain(); } catch (e) { /* ignore */ }
         try { await natsClient.close(); } catch (e) { /* ignore */ }

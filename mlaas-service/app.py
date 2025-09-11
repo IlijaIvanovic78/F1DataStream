@@ -168,7 +168,6 @@ def load_and_prepare_data(file_path: str) -> pd.DataFrame:
 
 
 def train_model(df: pd.DataFrame) -> Dict[str, Any]:
-    """Train the lap time prediction model"""
     global model, scaler, model_info
     
 
